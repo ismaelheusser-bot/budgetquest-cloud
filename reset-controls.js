@@ -1,18 +1,19 @@
 (()=>{
-  const TX_KEY='bq_tx';
-  const START_KEY='bq_budget_start';
+  const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
+  const TX_KEY=keys.transactions;
+  const START_KEY=keys.budgetStart;
   const currentMonthStart=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`};
-  const readTx=()=>{try{return JSON.parse(localStorage.getItem(TX_KEY)||'[]')}catch{return[]}};
-  const writeTx=rows=>localStorage.setItem(TX_KEY,JSON.stringify(rows));
+  const readTx=()=>{const value=storage.get(TX_KEY,[]);return Array.isArray(value)?value:[]};
+  const writeTx=rows=>storage.set(TX_KEY,rows);
 
   function clearAllTransactions(){
     const rows=readTx();
     if(!rows.length){alert('Es sind keine Buchungen vorhanden.');return}
     if(!confirm(`Wirklich alle ${rows.length} Buchungen löschen und frisch ab diesem Monat starten?\n\nLöhne, Fixkosten, Budgets und Sparziele bleiben bestehen.`))return;
     writeTx([]);
-    localStorage.setItem(START_KEY,currentMonthStart());
-    localStorage.removeItem('bq_transfer_ledger');
-    localStorage.removeItem('bq_income_sources');
+    storage.set(START_KEY,currentMonthStart());
+    storage.remove(keys.transferLedger);
+    storage.remove(keys.incomeSources);
     location.reload();
   }
 
