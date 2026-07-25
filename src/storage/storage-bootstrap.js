@@ -13,6 +13,7 @@
     budgets: 'bq_budgets',
     transactions: 'bq_tx',
     household: 'bq_household',
-    experience: 'bq_xp'
+    experience: 'bq_xp',
+    setupComplete: 'bq_setup_done'
   });
 })(window);
