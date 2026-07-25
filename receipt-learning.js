@@ -1,10 +1,12 @@
 (()=>{
- const KEY='bq_receipt_learning_v1';
+ const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
+ const KEY=keys.receiptLearning;
  const MAX_EXAMPLES=120;
  let currentScan=null;
 
- const load=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{"examples":[],"totalLabels":{}}')}catch{return{examples:[],totalLabels:{}}}};
- const save=data=>localStorage.setItem(KEY,JSON.stringify(data));
+ const empty=()=>({examples:[],totalLabels:{}});
+ const load=()=>{const value=storage.get(KEY,null);return value&&typeof value==='object'&&!Array.isArray(value)?value:empty()};
+ const save=data=>storage.set(KEY,data);
  const normal=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
  const tokens=s=>new Set(normal(s).split(' ').filter(x=>x.length>2&&!/^(chf|total|summe|betrag|datum|mwst|kasse|beleg|quittung)$/.test(x)));
  const similarity=(a,b)=>{const A=tokens(a),B=tokens(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>B.has(x)&&hit++);return hit/Math.max(A.size,B.size)};
