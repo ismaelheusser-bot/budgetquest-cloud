@@ -1,14 +1,16 @@
 (()=>{
-const KEY='bq_income_plan_v1';
-const RISK_KEY='bq_bonus_risk_factor';
+const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
+const KEY=keys.incomePlan;
+const RISK_KEY=keys.bonusRiskFactor;
 const defaults={
  people:[
   {name:'Ismael Heusser',sources:[{name:'Oberholzer AG',monthly:8564,type:'Hauptlohn'}],annual:[{name:'Jährlicher Bonus',amount:0,month:6},{name:'13. Monatslohn',amount:0,month:12}]},
   {name:'Sarah Heusser',sources:[{name:'Ärztefon AG',monthly:1196,type:'Nebeneinkommen'},{name:'Kinderpraxis Uster',monthly:1024,type:'Nebeneinkommen'},{name:'Diakoniewerk Neumünster',monthly:811,type:'Nebeneinkommen'}],annual:[{name:'Jährlicher Bonus',amount:0,month:12},{name:'13. Monatslohn',amount:0,month:12}]}
  ]
 };
-let plan=JSON.parse(localStorage.getItem(KEY)||'null')||defaults;
-let bonusRiskFactor=Math.min(100,Math.max(0,Number(localStorage.getItem(RISK_KEY)||70)));
+const readObject=key=>{const value=storage.get(key,null);return value&&typeof value==='object'&&!Array.isArray(value)?value:null};
+let plan=readObject(KEY)||defaults;
+let bonusRiskFactor=Math.min(100,Math.max(0,Number(storage.get(RISK_KEY,null)||70)));
 const fmt=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{maximumFractionDigits:2});
 const esc2=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const isBonus=x=>/bonus|prämie|provision|erfolgsbeteiligung/i.test(String(x?.name||''));
@@ -34,8 +36,8 @@ function householdTotals(){
   monthlyEquivalent:t.reduce((s,x)=>s+x.monthlyEquivalent,0)
  };
 }
-function syncBudgetIncome(){const total=householdTotals().monthlyEquivalent;if(typeof settings!=='undefined'){settings.income=Math.round(total*100)/100;localStorage.setItem('bq_settings',JSON.stringify(settings));const input=document.getElementById('incomeInput');if(input){input.value=settings.income;input.readOnly=true;input.title='Wird automatisch aus der Einkommensplanung berechnet.'}window.dispatchEvent(new Event('bq:income-updated'))}}
-function save(){localStorage.setItem(KEY,JSON.stringify(plan));localStorage.setItem(RISK_KEY,String(bonusRiskFactor));syncBudgetIncome();renderIncomePlanner();if(typeof render==='function')render()}
+function syncBudgetIncome(){const total=householdTotals().monthlyEquivalent;if(typeof settings!=='undefined'){settings.income=Math.round(total*100)/100;storage.set(keys.settings,settings);const input=document.getElementById('incomeInput');if(input){input.value=settings.income;input.readOnly=true;input.title='Wird automatisch aus der Einkommensplanung berechnet.'}window.dispatchEvent(new Event('bq:income-updated'))}}
+function save(){storage.set(KEY,plan);storage.set(RISK_KEY,String(bonusRiskFactor));syncBudgetIncome();renderIncomePlanner();if(typeof render==='function')render()}
 function renderIncomePlanner(){const host=document.getElementById('incomePlanner');if(!host)return;const totals=plan.people.map(personTotals),all=householdTotals();
  host.innerHTML=`<div class="section-head"><div><h2>👤 Einkommensplanung</h2><div class="tiny">Das Budget-Einkommen wird daraus automatisch berechnet.</div></div></div>
  <div class="metric-grid"><div class="metric"><label>Regelmässig pro Monat</label><strong class="positive">${fmt(all.regular)}</strong></div><div class="metric"><label>Jahresbruttolohn gesamt</label><strong>${fmt(all.yearRaw)}</strong></div><div class="metric"><label>Risikobereinigter Jahreslohn</label><strong>${fmt(all.yearSafe)}</strong></div><div class="metric"><label>Budget-Einkommen pro Monat</label><strong class="positive">${fmt(all.monthlyEquivalent)}</strong></div></div>
@@ -61,9 +63,9 @@ const budget=document.getElementById('budget');if(budget){const host=document.cr
 let manualMode=false;
 const step2=document.querySelector('.wizard-step[data-step="2"]');if(step2){const actions=step2.querySelector('.wizard-actions'),manual=document.createElement('button');manual.type='button';manual.className='btn secondary';manual.textContent='Ohne Import manuell einrichten';manual.onclick=()=>window.startManualSetup();actions?.insertBefore(manual,actions.lastElementChild);const note=document.createElement('p');note.className='tiny';note.textContent='Der CSV-Import ist optional. Bei ungenauen Bankdaten kannst du Löhne, Fixkosten und Sparziel vollständig selbst eintragen.';step2.insertBefore(note,actions)}
 function manualIncomeTotal(){return householdTotals().monthlyEquivalent}
-window.startManualSetup=()=>{manualMode=true;const income=document.getElementById('setupIncome'),fixed=document.getElementById('setupFixed'),saving=document.getElementById('setupSaving'),cats=document.getElementById('setupCategories');income.value=manualIncomeTotal();fixed.value=Number(JSON.parse(localStorage.getItem('bq_settings')||'null')?.fixed||0);saving.value=Number(JSON.parse(localStorage.getItem('bq_settings')||'null')?.saving||0);cats.innerHTML=`<div class="info-note"><strong>Manuelle Einrichtung</strong><br>Das Einkommen wird aus der Einkommensplanung berechnet. Fixkosten und Sparziel kannst du hier festlegen.</div>${plan.people.map((p,i)=>`<div class="category-review"><span>${i?'👩':'👨'} ${esc2(p.name)}</span><strong>${fmt(personTotals(p).monthlyEquivalent)}/Monat</strong></div>`).join('')}`;window.setupNext(4)};
-const originalFinish=window.finishSetup;window.finishSetup=function(){if(!manualMode)return originalFinish();const household=(document.getElementById('setupHousehold').value||'Unser Haushalt').trim(),newSettings={income:manualIncomeTotal(),fixed:+document.getElementById('setupFixed').value||0,saving:+document.getElementById('setupSaving').value||0};localStorage.setItem('bq_household',household);localStorage.setItem('bq_settings',JSON.stringify(newSettings));localStorage.setItem(KEY,JSON.stringify(plan));localStorage.setItem('bq_setup_done','1');document.getElementById('setupWizard').hidden=true;location.reload()};
-const now=new Date(),budgetStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`,inCurrentBudget=row=>row&&String(row.date||'')>=budgetStart;localStorage.setItem('bq_budget_start',budgetStart);if(Array.isArray(tx)){const current=tx.filter(inCurrentBudget);if(current.length!==tx.length){tx=current;saveAll();render()}}
+window.startManualSetup=()=>{manualMode=true;const income=document.getElementById('setupIncome'),fixed=document.getElementById('setupFixed'),saving=document.getElementById('setupSaving'),cats=document.getElementById('setupCategories');income.value=manualIncomeTotal();fixed.value=Number(storage.get(keys.settings,null)?.fixed||0);saving.value=Number(storage.get(keys.settings,null)?.saving||0);cats.innerHTML=`<div class="info-note"><strong>Manuelle Einrichtung</strong><br>Das Einkommen wird aus der Einkommensplanung berechnet. Fixkosten und Sparziel kannst du hier festlegen.</div>${plan.people.map((p,i)=>`<div class="category-review"><span>${i?'👩':'👨'} ${esc2(p.name)}</span><strong>${fmt(personTotals(p).monthlyEquivalent)}/Monat</strong></div>`).join('')}`;window.setupNext(4)};
+const originalFinish=window.finishSetup;window.finishSetup=function(){if(!manualMode)return originalFinish();const household=(document.getElementById('setupHousehold').value||'Unser Haushalt').trim(),newSettings={income:manualIncomeTotal(),fixed:+document.getElementById('setupFixed').value||0,saving:+document.getElementById('setupSaving').value||0};storage.set(keys.household,household);storage.set(keys.settings,newSettings);storage.set(KEY,plan);storage.set(keys.setupComplete,'1');document.getElementById('setupWizard').hidden=true;location.reload()};
+const now=new Date(),budgetStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`,inCurrentBudget=row=>row&&String(row.date||'')>=budgetStart;storage.set(keys.budgetStart,budgetStart);if(Array.isArray(tx)){const current=tx.filter(inCurrentBudget);if(current.length!==tx.length){tx=current;saveAll();render()}}
 const finishWithDateFilter=window.finishSetup;window.finishSetup=function(){if(!manualMode&&setupAnalysis&&Array.isArray(setupAnalysis.rows))setupAnalysis.rows=setupAnalysis.rows.filter(inCurrentBudget);return finishWithDateFilter.apply(this,arguments)};const importCsvWithDateFilter=window.importCsv;window.importCsv=function(){if(Array.isArray(csvRows))csvRows=csvRows.filter(inCurrentBudget);return importCsvWithDateFilter.apply(this,arguments)};
 if(!document.querySelector('script[data-bq-reset-controls]')){const script=document.createElement('script');script.src='reset-controls.js?v=18';script.dataset.bqResetControls='1';document.body.appendChild(script)}
 })();

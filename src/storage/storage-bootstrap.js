@@ -18,6 +18,11 @@
     savingsAssistant: 'bq_savings_assistant',
     savingsActive: 'bq_savings_active',
     activeSavingsMonthly: 'bq_active_savings_monthly',
-    privateSchoolMonthly: 'bq_private_school_monthly'
+    privateSchoolMonthly: 'bq_private_school_monthly',
+    homePlan: 'bq_home_plan',
+    homeSavingsMode: 'bq_home_savings_mode',
+    incomePlan: 'bq_income_plan_v1',
+    bonusRiskFactor: 'bq_bonus_risk_factor',
+    budgetStart: 'bq_budget_start'
   });
 })(window);
