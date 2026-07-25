@@ -32,6 +32,9 @@
     lastCloudBackup: 'bq_last_cloud_backup',
     lastCloudRestore: 'bq_last_cloud_restore',
     lastCloudEditor: 'bq_last_cloud_editor',
-    wealth: 'bq_wealth'
+    wealth: 'bq_wealth',
+    transferLedger: 'bq_transfer_ledger',
+    incomeSources: 'bq_income_sources',
+    receiptLearning: 'bq_receipt_learning_v1'
   });
 })(window);
