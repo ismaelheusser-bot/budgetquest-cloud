@@ -14,6 +14,10 @@
     transactions: 'bq_tx',
     household: 'bq_household',
     experience: 'bq_xp',
-    setupComplete: 'bq_setup_done'
+    setupComplete: 'bq_setup_done',
+    savingsAssistant: 'bq_savings_assistant',
+    savingsActive: 'bq_savings_active',
+    activeSavingsMonthly: 'bq_active_savings_monthly',
+    privateSchoolMonthly: 'bq_private_school_monthly'
   });
 })(window);
