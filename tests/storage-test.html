@@ -14,17 +14,26 @@
   <script>
     const result = document.getElementById('result');
     const testKey = 'bq_storage_test';
+    const legacyKey = 'bq_storage_legacy_test';
     const testValue = { funktioniert: true, zeit: new Date().toISOString() };
 
     try {
       budgetQuestStorage.set(testKey, testValue);
       const loaded = budgetQuestStorage.get(testKey);
-      const passed = loaded && loaded.funktioniert === true;
+      localStorage.setItem(legacyKey, 'Familie Heusser');
+      const legacyLoaded = budgetQuestStorage.get(legacyKey);
+      const passed = loaded
+        && loaded.funktioniert === true
+        && legacyLoaded === 'Familie Heusser';
+
       budgetQuestStorage.remove(testKey);
+      budgetQuestStorage.remove(legacyKey);
       result.textContent = passed
-        ? '✅ StorageService funktioniert.'
+        ? '✅ StorageService und bestehende Textwerte funktionieren.'
         : '❌ Gespeicherter Wert stimmt nicht.';
     } catch (error) {
+      budgetQuestStorage.remove(testKey);
+      budgetQuestStorage.remove(legacyKey);
       result.textContent = `❌ Fehler: ${error.message}`;
     }
   </script>
