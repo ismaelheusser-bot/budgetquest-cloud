@@ -1,0 +1,85 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const root = path.resolve(__dirname, '..');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+
+class MemoryStorage {
+  constructor(entries = {}) {
+    this.data = new Map(Object.entries(entries));
+  }
+  get length() { return this.data.size; }
+  key(index) { return [...this.data.keys()][index] ?? null; }
+  getItem(key) { return this.data.has(key) ? this.data.get(key) : null; }
+  setItem(key, value) { this.data.set(key, String(value)); }
+  removeItem(key) { this.data.delete(key); }
+}
+
+async function main() {
+  const localStorage = new MemoryStorage({ bq_household: 'Familie Heusser' });
+  const window = { localStorage };
+  const context = vm.createContext({ window, console });
+
+  for (const file of [
+    'src/storage/storage-service.js',
+    'src/storage/local-storage-adapter.js',
+    'src/storage/storage-bootstrap.js',
+    'src/storage/cloud-sync-service.js',
+    'src/storage/firebase-firestore-adapter.js'
+  ]) {
+    vm.runInContext(read(file), context, { filename: file });
+  }
+
+  const storage = window.budgetQuestStorage;
+  const keys = window.BudgetQuestStorageKeys;
+  const calls = [];
+  let remoteListener = null;
+
+  const adapter = {
+    async connect(contextValue) { calls.push(['connect', contextValue]); },
+    async pullAll() { return { values: {} }; },
+    async replaceAll(values) { calls.push(['replaceAll', values]); },
+    async set(key, value) { calls.push(['set', key, value]); },
+    async remove(key) { calls.push(['remove', key]); },
+    subscribe(listener) { remoteListener = listener; return () => { remoteListener = null; }; }
+  };
+
+  const sync = new window.BudgetQuestCloudSyncService({
+    storage,
+    adapter,
+    keys: Object.values(keys),
+    onError: error => { throw error; }
+  });
+
+  await sync.start({ householdId: 'haushalt-1', userId: 'user-1' });
+  assert.equal(calls[0][0], 'connect');
+  assert.equal(calls[1][0], 'replaceAll');
+  assert.equal(calls[1][1][keys.household], 'Familie Heusser');
+
+  storage.set(keys.household, 'Lokal geändert');
+  await Promise.resolve();
+  assert.equal(calls.at(-1)[0], 'set');
+  assert.equal(calls.at(-1)[2], 'Lokal geändert');
+
+  const callCount = calls.length;
+  remoteListener({ values: { [keys.household]: 'Cloud-Stand' }, deletedKeys: [] });
+  assert.equal(storage.get(keys.household), 'Cloud-Stand');
+  assert.equal(calls.length, callCount, 'Cloud-Änderungen dürfen nicht zurückgesendet werden.');
+
+  remoteListener({ values: {}, deletedKeys: [keys.household] });
+  assert.equal(storage.has(keys.household), false);
+  assert.equal(calls.length, callCount, 'Cloud-Löschungen dürfen nicht zurückgesendet werden.');
+
+  sync.stop();
+  assert.equal(remoteListener, null);
+  console.log('✅ CloudSyncService-Prüfung bestanden.');
+}
+
+main().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
