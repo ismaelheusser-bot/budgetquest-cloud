@@ -135,4 +135,4 @@ window.renderTransactions=function(){originalRenderTransactions();document.query
 const originalSaveAll=window.saveAll;
 window.saveAll=function(){originalSaveAll();saveProfiles()};
 renderProfiles();render();installICloudControls();
-const proScript=document.createElement('script');proScript.src='pro.js?v=30';document.body.appendChild(proScript);
+const proScript=document.createElement('script');proScript.src='pro.js?v=31';document.body.appendChild(proScript);
