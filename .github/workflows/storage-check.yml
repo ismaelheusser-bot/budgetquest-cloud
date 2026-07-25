@@ -1,0 +1,30 @@
+name: Storage checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.js'
+      - 'service-worker.js'
+      - '.github/workflows/storage-check.yml'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Speicher und Offline-App prüfen
+        run: node tests/storage-service.test.js
