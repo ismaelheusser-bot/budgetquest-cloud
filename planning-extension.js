@@ -1,7 +1,8 @@
 (()=>{
- const SCHOOL_KEY='bq_private_school_monthly';
+ const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
+ const SCHOOL_KEY=keys.privateSchoolMonthly;
  const money=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
- const schoolCost=()=>Math.max(0,Number(localStorage.getItem(SCHOOL_KEY)||0));
+ const schoolCost=()=>Math.max(0,Number(storage.get(SCHOOL_KEY,0)||0));
  let receiptScanGeneration=0;
 
  function migrateSarahProfile(){
@@ -55,7 +56,7 @@
   const card=form.closest('.card');
   makeCollapsible(card,'Grunddaten',()=>`Einkommen ${money(settings?.income)} · Fixkosten ${money(Number(settings?.fixed||0)+schoolCost())} · Sparziel ${money(settings?.saving)}`);
   form.addEventListener('submit',()=>{
-   localStorage.setItem(SCHOOL_KEY,String(Math.max(0,Number(document.getElementById('privateSchoolInput')?.value||0))));
+   storage.set(SCHOOL_KEY,String(Math.max(0,Number(document.getElementById('privateSchoolInput')?.value||0))));
    setTimeout(()=>{card?._setCollapsed?.();window.dispatchEvent(new Event('bq:fixed-costs-updated'))},0);
   },true);
  }
