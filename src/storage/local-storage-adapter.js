@@ -12,13 +12,15 @@
     }
 
     get(key, fallback = null) {
+      const raw = this.storage.getItem(this.key(key));
+      if (raw === null) return fallback;
+
       try {
-        const raw = this.storage.getItem(this.key(key));
-        if (raw === null) return fallback;
         return JSON.parse(raw);
       } catch (error) {
-        console.warn(`BudgetQuest: Speicherwert ${key} konnte nicht gelesen werden.`, error);
-        return fallback;
+        // Frühere BudgetQuest-Versionen speicherten einzelne Textwerte
+        // (zum Beispiel bq_household) ohne JSON-Kodierung.
+        return raw;
       }
     }
 
