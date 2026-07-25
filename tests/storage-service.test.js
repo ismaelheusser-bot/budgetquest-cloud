@@ -76,7 +76,7 @@ assert.equal(storage.get('nicht_vorhanden', 'fallback'), 'fallback');
 storage.set(keys.household, 'Neuer Haushalt');
 assert.equal(storage.get(keys.household), 'Neuer Haushalt');
 storage.set('bq_test_array', [{ value: 1 }]);
-assert.deepEqual(storage.get('bq_test_array'), [{ value: 1 }]);
+assert.equal(JSON.stringify(storage.get('bq_test_array')), JSON.stringify([{ value: 1 }]));
 storage.remove('bq_test_array');
 assert.equal(storage.has('bq_test_array'), false);
 
