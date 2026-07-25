@@ -95,7 +95,7 @@
   function loadReceiptLearning(){
     if(document.querySelector('script[data-receipt-learning]'))return;
     const script=document.createElement('script');
-    script.src='./receipt-learning.js?v=1';
+    script.src='./receipt-learning.js?v=2';
     script.dataset.receiptLearning='1';
     document.head.appendChild(script);
   }
