@@ -1,7 +1,8 @@
 (()=>{
+ const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
  const money=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
- const activeSaving=()=>Number(localStorage.getItem('bq_active_savings_monthly')||0);
- const schoolCost=()=>Math.max(0,Number(localStorage.getItem('bq_private_school_monthly')||0));
+ const activeSaving=()=>Number(storage.get(keys.activeSavingsMonthly,0)||0);
+ const schoolCost=()=>Math.max(0,Number(storage.get(keys.privateSchoolMonthly,0)||0));
 
  function ensureDetailDialog(){
   if(document.getElementById('savingsDetailDialog'))return;
