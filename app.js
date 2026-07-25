@@ -1,17 +1,18 @@
 const defaults={income:10700,fixed:6180,saving:1120};
 const defaultBudgets=[{name:'Lebensmittel',limit:900},{name:'Shopping',limit:500},{name:'Transport',limit:450},{name:'Freizeit',limit:350},{name:'Abonnements',limit:180}];
-let settings=JSON.parse(localStorage.getItem('bq_settings')||'null')||defaults;
-let budgets=JSON.parse(localStorage.getItem('bq_budgets')||'null')||defaultBudgets;
-let tx=JSON.parse(localStorage.getItem('bq_tx')||'[]');
-let household=localStorage.getItem('bq_household')||'BudgetQuest';
-let xp=Number(localStorage.getItem('bq_xp')||2480),csvRows=[],setupFiles=[],setupAnalysis=null,undoItem=null,undoTimer=null;
+const storage=budgetQuestStorage,storageKeys=BudgetQuestStorageKeys;
+let settings=storage.get(storageKeys.settings,null)||defaults;
+let budgets=storage.get(storageKeys.budgets,null)||defaultBudgets;
+let tx=storage.get(storageKeys.transactions,null)||[];
+let household=storage.get(storageKeys.household,null)||'BudgetQuest';
+let xp=Number(storage.get(storageKeys.experience,null)||2480),csvRows=[],setupFiles=[],setupAnalysis=null,undoItem=null,undoTimer=null;
 budgets=budgets.map(b=>({name:b.name,limit:+b.limit||0}));
 const $=id=>document.getElementById(id),money=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const parseDate=v=>{if(!v)return null;let s=String(v).trim();const m=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);if(m)s=`${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;const d=new Date(s);return isNaN(d)?null:d};
 const monthTx=(month=new Date().getMonth(),year=new Date().getFullYear())=>tx.filter(t=>{const d=parseDate(t.date);return d&&d.getMonth()===month&&d.getFullYear()===year});
 const monthSpent=(month,year)=>monthTx(month,year).reduce((s,t)=>s+(+t.amount>0?+t.amount:0),0);
-function saveAll(){localStorage.setItem('bq_settings',JSON.stringify(settings));localStorage.setItem('bq_budgets',JSON.stringify(budgets));localStorage.setItem('bq_tx',JSON.stringify(tx));localStorage.setItem('bq_xp',xp);localStorage.setItem('bq_household',household)}
+function saveAll(){storage.set(storageKeys.settings,settings);storage.set(storageKeys.budgets,budgets);storage.set(storageKeys.transactions,tx);storage.set(storageKeys.experience,xp);storage.set(storageKeys.household,household)}
 function categorySpent(name){return monthTx().filter(t=>t.cat===name&&+t.amount>0).reduce((s,t)=>s+(+t.amount||0),0)}
 function savingRate(){const spent=monthSpent()+Number(settings.fixed||0);return settings.income?Math.max(-100,Math.round((settings.income-spent)/settings.income*100)):0}
 function score(){const total=budgets.reduce((s,b)=>s+b.limit,0),variable=monthSpent(),budgetScore=total?Math.max(0,1-variable/total):1,rate=Math.max(0,savingRate())/40;return Math.max(0,Math.min(100,Math.round(55+budgetScore*25+Math.min(1,rate)*20)))}
@@ -42,7 +43,7 @@ function setupNext(step){document.querySelectorAll('.wizard-step').forEach(s=>s.
 function handleSetupFiles(files){setupFiles=[...files];$('setupFileList').innerHTML=setupFiles.map(f=>`<div class="file-item"><span>📄 ${esc(f.name)}</span><small>${(f.size/1024).toFixed(0)} KB</small></div>`).join('');$('analyseBtn').disabled=!setupFiles.length}
 async function analyseSetup(){setupNext(3);const stages=[['Bankdateien werden gelesen…',22,'Dateien geladen'],['Buchungen werden kategorisiert…',50,'Kategorien erkannt'],['Einnahmen und Fixkosten werden gesucht…',78,'Wiederkehrende Zahlungen erkannt'],['Budgets werden berechnet…',100,'Budgetvorschläge erstellt']];$('analysisChecks').innerHTML='';for(const [text,p,label] of stages){$('analysisText').textContent=text;$('analysisBar').style.width=p+'%';await new Promise(r=>setTimeout(r,380));$('analysisChecks').innerHTML+=`<div class="check-item"><span>✓ ${label}</span></div>`}const rows=await filesToRows(setupFiles);setupAnalysis=analyseRows(rows);showSetupReview();setTimeout(()=>setupNext(4),300)}
 function showSetupReview(){const a=setupAnalysis;$('setupIncome').value=a.monthlyIncome;$('setupFixed').value=a.fixed;$('setupSaving').value=a.saving;$('setupCategories').innerHTML=`<div class="tiny">${a.rows.length} Buchungen aus ${a.months} Monaten · ${a.fixedRows.length} Fixkosten erkannt</div>`+a.budgets.map(b=>`<div class="category-review"><span>${esc(b.name)}</span><span>${money(b.limit)}/Monat</span></div>`).join('')}
-function finishSetup(){if(!setupAnalysis)return;household=$('setupHousehold').value.trim()||'Unser Haushalt';settings={income:+$('setupIncome').value||0,fixed:+$('setupFixed').value||0,saving:+$('setupSaving').value||0};budgets=setupAnalysis.budgets;tx=mergeTransactions(tx,setupAnalysis.rows);localStorage.setItem('bq_setup_done','1');saveAll();$('setupWizard').hidden=true;render()}
+function finishSetup(){if(!setupAnalysis)return;household=$('setupHousehold').value.trim()||'Unser Haushalt';settings={income:+$('setupIncome').value||0,fixed:+$('setupFixed').value||0,saving:+$('setupSaving').value||0};budgets=setupAnalysis.budgets;tx=mergeTransactions(tx,setupAnalysis.rows);storage.set(storageKeys.setupComplete,'1');saveAll();$('setupWizard').hidden=true;render()}
 function mergeTransactions(existing,incoming){const seen=new Set(existing.map(r=>`${r.date}|${Math.round(+r.amount*100)}|${normalMerchant(r.title)}`));return existing.concat(incoming.filter(r=>{const k=`${r.date}|${Math.round(+r.amount*100)}|${normalMerchant(r.title)}`;if(seen.has(k))return false;seen.add(k);return true}))}
 function restartSetup(){if(confirm('Ersteinrichtung erneut starten? Bestehende Daten bleiben bis zur Bestätigung erhalten.')){$('setupWizard').hidden=false;setupNext(1)}}
 async function readCsvFiles(files){$('csvStatus').textContent='Dateien werden gelesen…';csvRows=await filesToRows(files);$('csvStatus').textContent=`${csvRows.length} Buchungen erkannt.`;$('importCsvBtn').disabled=!csvRows.length}
@@ -52,4 +53,4 @@ function extractFast(text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filt
 async function scanReceipt(file){if(!file)return;$('receiptPreview').src=URL.createObjectURL(file);$('receiptPreview').hidden=false;$('receiptForm').hidden=true;$('receiptStatus').textContent='Beleg wird vorbereitet…';try{const result=await Tesseract.recognize(await prepareImage(file),'deu'),d=extractFast(result.data.text);$('receiptMerchant').value=d.merchant;$('receiptAmount').value=d.amount||'';$('receiptCategory').value=budgets.some(b=>b.name===d.cat)?d.cat:(budgets[0]?.name||'');$('receiptForm').hidden=false;$('receiptStatus').textContent=d.amount?'Fertig – bitte kurz prüfen.':'Total bitte manuell ergänzen.'}catch(e){$('receiptStatus').textContent='Scan fehlgeschlagen: '+e.message}}
 function saveReceipt(e){e.preventDefault();tx.push({title:$('receiptMerchant').value.trim(),amount:+$('receiptAmount').value,cat:$('receiptCategory').value,date:new Date().toISOString().slice(0,10),source:'receipt'});xp+=25;saveAll();render();$('receiptDialog').close();e.target.reset();$('receiptPreview').hidden=true}
 document.querySelectorAll('.nav button').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));btn.classList.add('active');$(btn.dataset.target).classList.add('active');scrollTo({top:0,behavior:'smooth'})});
-if(!localStorage.getItem('bq_setup_done'))$('setupWizard').hidden=false;if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');render();
+if(!storage.has(storageKeys.setupComplete))$('setupWizard').hidden=false;if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');render();
