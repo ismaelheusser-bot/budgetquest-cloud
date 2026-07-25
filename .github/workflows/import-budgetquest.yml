@@ -24,16 +24,13 @@ jobs:
       - name: Copy application files
         run: |
           find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' ! -name 'README.md' -exec rm -rf {} +
-          cp -a /tmp/budgetquest-app/. .
-          rm -rf .git
-          mkdir -p .github/workflows
-          git checkout -- .github/workflows/import-budgetquest.yml
+          rsync -a --exclude='.git' --exclude='.github' /tmp/budgetquest-app/ ./
           cat > README.md <<'EOF'
           # BudgetQuest Cloud
 
-          Cloud-enabled development copy of BudgetQuest.
+          Deutsche Cloud-Weiterentwicklung der aktuellen BudgetQuest-App.
 
-          The stable local version remains in `budgetquest-app`. This repository is the development base for Firebase synchronization, multi-user households and the intelligent receipt reader.
+          Die stabile bisherige Version bleibt in `budgetquest-app`. Dieses Repository ist die Entwicklungsbasis für Firebase-Synchronisation, gemeinsame Haushalte und den intelligenten lernenden Belegleser.
           EOF
 
       - name: Commit imported source
