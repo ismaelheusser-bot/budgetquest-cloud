@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>BudgetQuest Speicher-Test</title>
+</head>
+<body>
+  <h1>BudgetQuest Speicher-Test</h1>
+  <pre id="result">Test läuft …</pre>
+
+  <script src="../src/storage/storage-service.js"></script>
+  <script src="../src/storage/local-storage-adapter.js"></script>
+  <script src="../src/storage/storage-bootstrap.js"></script>
+  <script>
+    const result = document.getElementById('result');
+    const testKey = 'bq_storage_test';
+    const testValue = { funktioniert: true, zeit: new Date().toISOString() };
+
+    try {
+      budgetQuestStorage.set(testKey, testValue);
+      const loaded = budgetQuestStorage.get(testKey);
+      const passed = loaded && loaded.funktioniert === true;
+      budgetQuestStorage.remove(testKey);
+      result.textContent = passed
+        ? '✅ StorageService funktioniert.'
+        : '❌ Gespeicherter Wert stimmt nicht.';
+    } catch (error) {
+      result.textContent = `❌ Fehler: ${error.message}`;
+    }
+  </script>
+</body>
+</html>
