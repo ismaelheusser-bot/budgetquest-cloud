@@ -23,6 +23,15 @@
     homeSavingsMode: 'bq_home_savings_mode',
     incomePlan: 'bq_income_plan_v1',
     bonusRiskFactor: 'bq_bonus_risk_factor',
-    budgetStart: 'bq_budget_start'
+    budgetStart: 'bq_budget_start',
+    profiles: 'bq_profiles',
+    activeProfile: 'bq_active_profile',
+    iCloudFolder: 'bq_icloud_folder',
+    iCloudFilename: 'bq_icloud_filename',
+    sharedRevision: 'bq_shared_revision',
+    lastCloudBackup: 'bq_last_cloud_backup',
+    lastCloudRestore: 'bq_last_cloud_restore',
+    lastCloudEditor: 'bq_last_cloud_editor',
+    wealth: 'bq_wealth'
   });
 })(window);

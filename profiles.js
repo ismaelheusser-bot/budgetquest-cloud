@@ -1,10 +1,12 @@
+const profileStorage=budgetQuestStorage,profileStorageKeys=BudgetQuestStorageKeys;
 const profileDefaults=[{id:'isme',name:'Ismael',emoji:'👤'},{id:'partner',name:'Partnerin',emoji:'👤'}];
 const BQ_SHARED_FILE_VERSION=20;
 const BQ_DEFAULT_CLOUD_FILE='BudgetQuest-Familie-Heusser.json';
-let householdProfiles=JSON.parse(localStorage.getItem('bq_profiles')||'null')||profileDefaults;
-let activeProfileId=localStorage.getItem('bq_active_profile')||householdProfiles[0].id;
+const storedProfiles=profileStorage.get(profileStorageKeys.profiles,null);
+let householdProfiles=Array.isArray(storedProfiles)&&storedProfiles.length?storedProfiles:profileDefaults;
+let activeProfileId=profileStorage.get(profileStorageKeys.activeProfile,null)||householdProfiles[0].id;
 
-function saveProfiles(){localStorage.setItem('bq_profiles',JSON.stringify(householdProfiles));localStorage.setItem('bq_active_profile',activeProfileId)}
+function saveProfiles(){profileStorage.set(profileStorageKeys.profiles,householdProfiles);profileStorage.set(profileStorageKeys.activeProfile,activeProfileId)}
 function activeProfile(){return householdProfiles.find(p=>p.id===activeProfileId)||householdProfiles[0]}
 function renderProfiles(){
   const p=activeProfile();
@@ -20,8 +22,8 @@ function renameHousehold(){const value=prompt('Name des Haushalts',household);if
 
 function cloudSettings(){
  return{
-  folder:localStorage.getItem('bq_icloud_folder')||'iCloud Drive/BudgetQuest',
-  filename:localStorage.getItem('bq_icloud_filename')||BQ_DEFAULT_CLOUD_FILE
+  folder:profileStorage.get(profileStorageKeys.iCloudFolder,null)||'iCloud Drive/BudgetQuest',
+  filename:profileStorage.get(profileStorageKeys.iCloudFilename,null)||BQ_DEFAULT_CLOUD_FILE
  };
 }
 function cleanCloudFilename(value){
@@ -33,22 +35,22 @@ function saveCloudSettings(e){
  if(e)e.preventDefault();
  const folder=(document.getElementById('icloudFolder')?.value||'iCloud Drive/BudgetQuest').trim();
  const filename=cleanCloudFilename(document.getElementById('icloudFilename')?.value);
- localStorage.setItem('bq_icloud_folder',folder);
- localStorage.setItem('bq_icloud_filename',filename);
+ profileStorage.set(profileStorageKeys.iCloudFolder,folder);
+ profileStorage.set(profileStorageKeys.iCloudFilename,filename);
  const fileInput=document.getElementById('icloudFilename');if(fileInput)fileInput.value=filename;
  setCloudStatus(`Gespeichert: ${folder} / ${filename}`);
 }
-function nextSharedRevision(){return Number(localStorage.getItem('bq_shared_revision')||0)+1}
+function nextSharedRevision(){return Number(profileStorage.get(profileStorageKeys.sharedRevision,0)||0)+1}
 function householdBackupData(revision=nextSharedRevision()){
  const editor=activeProfile();
  return{
   format:'budgetquest-household',version:3,appVersion:BQ_SHARED_FILE_VERSION,revision,
   exportedAt:new Date().toISOString(),editedBy:{id:editor?.id||'',name:editor?.name||'Unbekannt'},household,
   profiles:householdProfiles,activeProfileId,settings,budgets,transactions:tx,xp,
-  homePlan:JSON.parse(localStorage.getItem('bq_home_plan')||'null'),
-  wealth:JSON.parse(localStorage.getItem('bq_wealth')||'null'),
-  incomePlan:JSON.parse(localStorage.getItem('bq_income_plan_v1')||'null'),
-  budgetStart:localStorage.getItem('bq_budget_start')||null
+  homePlan:profileStorage.get(profileStorageKeys.homePlan,null),
+  wealth:profileStorage.get(profileStorageKeys.wealth,null),
+  incomePlan:profileStorage.get(profileStorageKeys.incomePlan,null),
+  budgetStart:profileStorage.get(profileStorageKeys.budgetStart,null)||null
  };
 }
 function backupFile(data){
@@ -69,9 +71,9 @@ async function saveHouseholdToICloud(){
   }else{
    const a=document.createElement('a'),url=URL.createObjectURL(file);a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  localStorage.setItem('bq_shared_revision',String(revision));
-  localStorage.setItem('bq_last_cloud_backup',data.exportedAt);
-  localStorage.setItem('bq_last_cloud_editor',data.editedBy.name);
+  profileStorage.set(profileStorageKeys.sharedRevision,String(revision));
+  profileStorage.set(profileStorageKeys.lastCloudBackup,data.exportedAt);
+  profileStorage.set(profileStorageKeys.lastCloudEditor,data.editedBy.name);
   setCloudStatus(`Stand ${revision} von ${data.editedBy.name} erstellt. In ${cfg.folder} speichern und ${cfg.filename} ersetzen.`);
  }catch(err){
   if(err?.name==='AbortError'){setCloudStatus('Sicherung abgebrochen.');return}
@@ -88,7 +90,7 @@ async function importHousehold(file){
   const stamp=data.exportedAt?new Date(data.exportedAt).toLocaleString('de-CH'):'unbekannt';
   const revision=Number(data.revision||0);
   const editor=data.editedBy?.name||'Unbekannt';
-  const currentRevision=Number(localStorage.getItem('bq_shared_revision')||0);
+  const currentRevision=Number(profileStorage.get(profileStorageKeys.sharedRevision,null)||0);
   const warning=revision&&currentRevision&&revision<currentRevision?`\n\nAchtung: Diese Datei ist älter als der Stand ${currentRevision} auf diesem Gerät.`:'';
   if(!confirm(`Gemeinsame Datei – Stand ${revision||'?'}\nGespeichert: ${stamp}\nVon: ${editor}${warning}\n\nAktuelle Daten auf diesem Gerät ersetzen?`)){setCloudStatus('Öffnen abgebrochen.');return}
   household=data.household||household;
@@ -98,15 +100,15 @@ async function importHousehold(file){
   budgets=Array.isArray(data.budgets)?data.budgets:budgets;
   tx=Array.isArray(data.transactions)?data.transactions:tx;
   xp=Number(data.xp||xp);
-  if(data.homePlan)localStorage.setItem('bq_home_plan',JSON.stringify(data.homePlan));
-  if(data.wealth)localStorage.setItem('bq_wealth',JSON.stringify(data.wealth));
-  if(data.incomePlan)localStorage.setItem('bq_income_plan_v1',JSON.stringify(data.incomePlan));
-  if(data.budgetStart)localStorage.setItem('bq_budget_start',data.budgetStart);
-  localStorage.setItem('bq_setup_done','1');
-  localStorage.setItem('bq_shared_revision',String(revision));
-  localStorage.setItem('bq_last_cloud_restore',new Date().toISOString());
-  localStorage.setItem('bq_last_cloud_editor',editor);
-  localStorage.setItem('bq_icloud_filename',cleanCloudFilename(file.name));
+  if(data.homePlan)profileStorage.set(profileStorageKeys.homePlan,data.homePlan);
+  if(data.wealth)profileStorage.set(profileStorageKeys.wealth,data.wealth);
+  if(data.incomePlan)profileStorage.set(profileStorageKeys.incomePlan,data.incomePlan);
+  if(data.budgetStart)profileStorage.set(profileStorageKeys.budgetStart,data.budgetStart);
+  profileStorage.set(profileStorageKeys.setupComplete,'1');
+  profileStorage.set(profileStorageKeys.sharedRevision,String(revision));
+  profileStorage.set(profileStorageKeys.lastCloudRestore,new Date().toISOString());
+  profileStorage.set(profileStorageKeys.lastCloudEditor,editor);
+  profileStorage.set(profileStorageKeys.iCloudFilename,cleanCloudFilename(file.name));
   saveProfiles();saveAll();renderProfiles();render();
   setCloudStatus(`Stand ${revision||'?'} von ${editor} geladen.`);
   profileDialog.close();
@@ -117,9 +119,9 @@ async function importHousehold(file){
 }
 function installICloudControls(){
  const box=document.querySelector('.cloud-note');if(!box)return;
- const last=localStorage.getItem('bq_last_cloud_backup');
- const revision=localStorage.getItem('bq_shared_revision')||'0';
- const editor=localStorage.getItem('bq_last_cloud_editor')||activeProfile()?.name||'';
+ const last=profileStorage.get(profileStorageKeys.lastCloudBackup,null);
+ const revision=profileStorage.get(profileStorageKeys.sharedRevision,null)||'0';
+ const editor=profileStorage.get(profileStorageKeys.lastCloudEditor,null)||activeProfile()?.name||'';
  const cfg=cloudSettings();
  box.innerHTML=`<strong>☁️ Gemeinsame iCloud-Datei · Version ${BQ_SHARED_FILE_VERSION}</strong><p>Lege den gewünschten Ordner und Dateinamen fest. Die App merkt sich diese Angaben. iOS öffnet beim Laden und Speichern weiterhin die sichere Dateien-Auswahl.</p><form class="form section" onsubmit="saveCloudSettings(event)"><label>iCloud-Ordner (Merkhilfe)<input id="icloudFolder" value="${esc(cfg.folder)}" placeholder="iCloud Drive/BudgetQuest"></label><label>Gemeinsamer Dateiname<input id="icloudFilename" value="${esc(cfg.filename)}" placeholder="BudgetQuest-Familie-Heusser.json"></label><button class="btn secondary" type="submit">Einstellungen merken</button></form><div class="actions"><button class="btn" type="button" onclick="saveHouseholdToICloud()">Aktuellen Stand speichern</button><button class="btn secondary" type="button" onclick="chooseICloudBackup()">Gemeinsamen Stand öffnen</button></div><input id="icloudImportInput" type="file" accept="application/json,.json" hidden onchange="importHousehold(this.files[0])"><div id="icloudStatus" class="tiny" style="margin-top:10px">${last?`Stand ${revision} · ${editor} · ${new Date(last).toLocaleString('de-CH')}`:'Noch keine gemeinsame Datei gespeichert.'}</div><p class="tiny"><b>Ablauf:</b> Beide verwenden denselben freigegebenen iCloud-Ordner und denselben Dateinamen. Vor dem Bearbeiten zuerst öffnen, danach speichern und die bestehende Datei ersetzen.</p><p class="tiny">Apple-ID und Passwort werden nicht abgefragt oder gespeichert. Eine Web-App darf aus Sicherheitsgründen nicht direkt auf dein iCloud-Konto zugreifen.</p>`;
 }
