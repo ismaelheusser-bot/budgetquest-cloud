@@ -1,0 +1,46 @@
+@media (max-width:720px){
+  html,body{overflow-x:hidden!important;max-width:100%!important}
+  .app{padding-bottom:94px!important;overflow-x:hidden!important}
+  nav.nav{
+    position:fixed!important;
+    z-index:999!important;
+    left:4px!important;
+    right:4px!important;
+    bottom:calc(8px + env(safe-area-inset-bottom))!important;
+    width:auto!important;
+    max-width:none!important;
+    transform:none!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    grid-template-rows:50px!important;
+    gap:1px!important;
+    padding:4px!important;
+    overflow:visible!important;
+    border-radius:16px!important;
+  }
+  nav.nav>button{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:relative!important;
+    min-width:0!important;
+    max-width:none!important;
+    width:auto!important;
+    margin:0!important;
+    padding:6px 0!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-overflow:clip!important;
+    font-size:clamp(7px,2.15vw,9px)!important;
+    line-height:1!important;
+    letter-spacing:-.3px!important;
+  }
+  nav.nav>button[data-target="home"]{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    grid-column:6!important;
+    font-size:clamp(6.5px,2vw,8.5px)!important;
+  }
+  .fab{bottom:calc(72px + env(safe-area-inset-bottom))!important}
+}

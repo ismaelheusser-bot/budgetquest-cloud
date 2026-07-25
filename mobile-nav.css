@@ -1,0 +1,22 @@
+@media (max-width:720px){
+  .app{padding-bottom:156px}
+  .fab{bottom:142px}
+  .toast{bottom:148px}
+  .nav{
+    bottom:8px;
+    width:calc(100% - 16px);
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(2,auto);
+    overflow:visible;
+    gap:4px;
+    padding:6px;
+    border-radius:18px;
+  }
+  .nav button{
+    min-width:0;
+    padding:9px 2px;
+    font-size:11px;
+    white-space:nowrap;
+  }
+}
