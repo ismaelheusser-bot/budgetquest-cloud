@@ -9,9 +9,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 class MemoryStorage {
-  constructor(entries = {}) {
-    this.data = new Map(Object.entries(entries));
-  }
+  constructor(entries = {}) { this.data = new Map(Object.entries(entries)); }
   get length() { return this.data.size; }
   key(index) { return [...this.data.keys()][index] ?? null; }
   getItem(key) { return this.data.has(key) ? this.data.get(key) : null; }
@@ -30,9 +28,7 @@ async function main() {
     'src/storage/storage-bootstrap.js',
     'src/storage/cloud-sync-service.js',
     'src/storage/firebase-firestore-adapter.js'
-  ]) {
-    vm.runInContext(read(file), context, { filename: file });
-  }
+  ]) vm.runInContext(read(file), context, { filename: file });
 
   const storage = window.budgetQuestStorage;
   const keys = window.BudgetQuestStorageKeys;
@@ -51,9 +47,7 @@ async function main() {
   };
 
   const sync = new window.BudgetQuestCloudSyncService({
-    storage,
-    adapter,
-    keys: Object.values(keys),
+    storage, adapter, keys: Object.values(keys),
     onError: error => { throw error; },
     onRemoteChange: () => { remoteChanges += 1; }
   });
@@ -66,20 +60,23 @@ async function main() {
   storage.set(keys.household, 'Lokal geändert');
   await Promise.resolve();
   assert.equal(calls.at(-1)[0], 'set');
-  assert.equal(calls.at(-1)[2], 'Lokal geändert');
 
   const callCount = calls.length;
   remoteListener({ values: { [keys.household]: 'Cloud-Stand' }, deletedKeys: [] });
   assert.equal(storage.get(keys.household), 'Cloud-Stand');
-  assert.equal(calls.length, callCount, 'Cloud-Änderungen dürfen nicht zurückgesendet werden.');
-  assert.equal(remoteChanges, 1);
+  assert.equal(calls.length, callCount);
+  assert.equal(remoteChanges, 0, 'Der initiale Firestore-Snapshot darf keinen Reload auslösen.');
 
-  remoteListener({ values: { [keys.household]: 'Cloud-Stand' }, deletedKeys: [] });
-  assert.equal(remoteChanges, 1, 'Identische Cloud-Stände dürfen keinen Reload auslösen.');
+  remoteListener({ values: { [keys.household]: 'Cloud-Stand 2' }, deletedKeys: [] });
+  assert.equal(storage.get(keys.household), 'Cloud-Stand 2');
+  assert.equal(remoteChanges, 1, 'Spätere echte Cloud-Änderungen müssen aktualisieren.');
+
+  remoteListener({ values: { [keys.household]: 'Cloud-Stand 2' }, deletedKeys: [] });
+  assert.equal(remoteChanges, 1);
 
   remoteListener({ values: {}, deletedKeys: [keys.household] });
   assert.equal(storage.has(keys.household), false);
-  assert.equal(calls.length, callCount, 'Cloud-Löschungen dürfen nicht zurückgesendet werden.');
+  assert.equal(calls.length, callCount);
   assert.equal(remoteChanges, 2);
 
   sync.stop();

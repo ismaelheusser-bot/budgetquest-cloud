@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const client = read('src/firebase/firebase-client.js');
 const authUi = read('src/firebase/firebase-auth-ui.js');
+const cloudSync = read('src/storage/cloud-sync-service.js');
 const index = read('index.html');
 const worker = read('service-worker.js');
 const rules = read('firestore.rules');
@@ -20,13 +21,16 @@ assert.match(authUi, /signInWithPopup/);
 assert.match(authUi, /budgetQuestGoogleSignIn/);
 assert.doesNotMatch(authUi, /signInWithEmailAndPassword/);
 assert.match(authUi, /firebaseCloudControls/);
+assert.match(cloudSync, /let initialRemoteSnapshot = true/);
+assert.match(cloudSync, /notify: !initialRemoteSnapshot/);
+assert.match(cloudSync, /applySnapshot\(normalized, \{ notify:/);
 
 const storagePosition = index.indexOf('src/storage/storage-bootstrap.js');
 const firebasePosition = index.indexOf('src/firebase/firebase-client.js');
 const appPosition = index.indexOf('app.js?v=');
 assert(storagePosition >= 0 && firebasePosition > storagePosition && appPosition > firebasePosition);
 assert.match(index, /id="firebaseAccount"/);
-assert.match(worker, /budgetquest-v67/);
+assert.match(worker, /budgetquest-v68/);
 assert.match(worker, /src\/firebase\/firebase-client\.js/);
 assert.match(worker, /src\/firebase\/firebase-auth-ui\.js/);
 assert.match(rules, /request\.auth\.uid in data\.memberIds/);
@@ -35,4 +39,4 @@ assert.match(index, /cloud-sync-service\.js/);
 assert.match(index, /firebase-firestore-adapter\.js/);
 assert.match(index, /firebase-cloud-controller\.js/);
 
-console.log('✅ Firebase-Grundlage, gemeinsame Haushalte und bestätigungspflichtige Cloud-Steuerung sind eingebunden.');
+console.log('✅ Firebase-Grundlage, gemeinsame Haushalte und stabiler Cloud-Start sind eingebunden.');
