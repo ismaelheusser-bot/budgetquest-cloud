@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: '22'
       - name: BudgetQuest prüfen
-        run: node tests/storage-service.test.js && node tests/cloud-sync-service.test.js && node tests/firebase-foundation.test.js
+        run: node tests/storage-service.test.js && node tests/cloud-sync-service.test.js && node tests/firebase-foundation.test.js && node tests/firebase-cloud-controller.test.js
 
   deploy:
     needs: test
