@@ -10,6 +10,14 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   }
 
+  function ensureHomePlan() {
+    const current = global.homePlan;
+    if (current && typeof current === 'object' && !Array.isArray(current)) return current;
+    const saved = storedPlan();
+    global.homePlan = { ...saved };
+    return global.homePlan;
+  }
+
   function prepareGrossInput() {
     if (preparing) return;
     const input = document.getElementById('homeGross');
@@ -34,17 +42,19 @@
     global.syncHomeFromBudget = function () {
       const budget = typeof global.settings !== 'undefined' ? global.settings : (storage.get(keys.settings, {}) || {});
       const saved = storedPlan();
-      global.homePlan.annualGross = Math.max(0, Number(saved.annualGross ?? global.homePlan.annualGross ?? 0));
-      global.homePlan.monthlySaving = Math.max(0, Number(budget?.saving || 0));
-      global.homePlan.incomeGrowth = Math.max(0, Number(global.homePlan.incomeGrowth || 0));
-      global.homePlan.equity = Math.max(0, Number(global.homePlan.equity || 0));
-      global.homePlan.pillar3aBalance = Math.max(0, Number(global.homePlan.pillar3aBalance || 0));
-      global.homePlan.pillar3aAnnual = Math.max(0, Number(global.homePlan.pillar3aAnnual || 0));
-      storage.set(keys.homePlan, global.homePlan);
+      const plan = ensureHomePlan();
+      plan.annualGross = Math.max(0, Number(saved.annualGross ?? plan.annualGross ?? 0));
+      plan.monthlySaving = Math.max(0, Number(budget?.saving || 0));
+      plan.incomeGrowth = Math.max(0, Number(plan.incomeGrowth || 0));
+      plan.equity = Math.max(0, Number(plan.equity || 0));
+      plan.pillar3aBalance = Math.max(0, Number(plan.pillar3aBalance || 0));
+      plan.pillar3aAnnual = Math.max(0, Number(plan.pillar3aAnnual || 0));
+      storage.set(keys.homePlan, plan);
     };
 
     const originalRenderHome = global.renderHome;
     global.renderHome = function () {
+      ensureHomePlan();
       originalRenderHome();
       prepareGrossInput();
     };
@@ -54,12 +64,14 @@
       input.dataset.grossFixReady = '1';
       input.addEventListener('input', () => {
         const value = Math.max(0, Number(input.value || 0));
-        global.homePlan.annualGross = value;
-        storage.set(keys.homePlan, global.homePlan);
+        const plan = ensureHomePlan();
+        plan.annualGross = value;
+        storage.set(keys.homePlan, plan);
         global.setTimeout(() => global.renderHome(), 0);
       });
     }
 
+    ensureHomePlan();
     prepareGrossInput();
     return true;
   }
