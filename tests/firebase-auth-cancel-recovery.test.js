@@ -14,6 +14,6 @@ assert.match(authUi, /pageshow/);
 assert.match(authUi, /visibilitychange/);
 assert.match(authUi, /resetPendingAuthState/);
 assert.match(authUi, /auth\/popup-closed-by-user/);
-assert.match(worker, /budgetquest-v67/);
+assert.match(worker, /budgetquest-v68/);
 
 console.log('✅ Abgebrochene Google-Anmeldungen geben die Oberfläche wieder frei.');
