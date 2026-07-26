@@ -39,11 +39,29 @@ const pdfResult = parser.parseText(pdfText, 'Revolut.pdf');
 assert.equal(pdfResult.positions.length, 2);
 assert.equal(pdfResult.positions[1].category, 'crypto');
 
-const transactions = [
-  'Type,Product,Completed Date,Description,Amount,Currency,State',
-  'CARD_PAYMENT,Current,2026-07-20,MIGROS,-42.50,CHF,COMPLETED'
+const revolutPdfLayout = [
+  'Period 01 Jul 2026 - 26 Jul 2026',
+  'USD Portfolio breakdown',
+  'Symbol Company ISIN Quantity Price Value % of Portfolio',
+  'TEST Example Technologies US0000000001 2.50000000 US$10.00 US$25.00 62.5%',
+  'FUND Example Global ETF IE0000000002 1.25000000 US$12.00 US$15.00 37.5%',
+  'Positions Value US$40.00 100%',
+  'USD Transactions'
 ].join('\n');
-assert.equal(parser.parseCsv(transactions).positions.length, 0, 'Zahlungskonto darf nicht als Vermögen importiert werden.');
+const revolutPdfResult = parser.parseText(revolutPdfLayout, 'Depot.pdf');
+assert.equal(revolutPdfResult.positions.length, 2);
+assert.equal(revolutPdfResult.positions[0].currency, 'USD');
+assert.equal(revolutPdfResult.positions[0].name, 'Example Technologies');
+assert.equal(revolutPdfResult.positions[0].value, 25);
+assert.equal(revolutPdfResult.statementDate, '2026-07-26');
+
+const transactions = [
+  'Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate',
+  '2026-07-20,TEST,BUY,2,10.00,20.00,USD,0.80'
+].join('\n');
+const transactionResult = parser.parseCsv(transactions);
+assert.equal(transactionResult.positions.length, 0, 'Transaktionshistorie darf nicht als aktueller Bestand importiert werden.');
+assert.equal(transactionResult.kind, 'transaction_history');
 
 const ui = fs.readFileSync(path.join(root, 'src/wealth/revolut-wealth.js'), 'utf8');
 assert.match(ui, /keys\.wealth/);
