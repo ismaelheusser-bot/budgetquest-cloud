@@ -1,6 +1,9 @@
 (function (global) {
   'use strict';
 
+  const AUTH_OPERATION_TIMEOUT_MS = 45000;
+  let authBusy = false;
+
   const container = () => document.getElementById('firebaseAccount');
   const status = (message, isError = false) => {
     const element = document.getElementById('firebaseAuthStatus');
@@ -12,11 +15,12 @@
   const messageFor = error => {
     const messages = {
       'auth/account-exists-with-different-credential': 'Für diese E-Mail besteht bereits eine andere Anmeldemethode.',
-      'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen.',
+      'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
       'auth/network-request-failed': 'Keine Verbindung zu Google. Bitte Internetverbindung prüfen.',
       'auth/operation-not-allowed': 'Google muss zuerst in Firebase Authentication aktiviert werden.',
       'auth/popup-blocked': 'Das Google-Fenster wurde blockiert. Bitte Pop-ups für BudgetQuest erlauben.',
-      'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen.',
+      'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen. Die App kann normal weiterverwendet werden.',
+      'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet und wurde zurückgesetzt. Bitte erneut versuchen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
       'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
     };
@@ -24,10 +28,30 @@
   };
 
   const setBusy = busy => {
+    authBusy = busy;
     document.querySelectorAll('[data-firebase-auth]').forEach(button => {
       button.disabled = busy;
+      button.setAttribute('aria-busy', busy ? 'true' : 'false');
     });
   };
+
+  function resetPendingAuthState(message = '') {
+    if (!authBusy) return;
+    setBusy(false);
+    if (message) status(message, true);
+  }
+
+  function withTimeout(promise) {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = global.setTimeout(() => {
+        const error = new Error('Google-Anmeldung abgelaufen');
+        error.code = 'auth/operation-timeout';
+        reject(error);
+      }, AUTH_OPERATION_TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).finally(() => global.clearTimeout(timeoutId));
+  }
 
   const signedOutTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
@@ -64,6 +88,7 @@
       if (name) name.textContent = user.displayName || user.email || 'Google-Nutzer';
       if (email) email.textContent = user.email || '';
     }
+    setBusy(false);
     global.budgetQuestCurrentUser = user || null;
     global.dispatchEvent(new CustomEvent('budgetquest-auth-changed', {
       detail: { user: user || null }
@@ -71,11 +96,12 @@
   }
 
   async function perform(action, successMessage) {
+    if (authBusy) return;
     setBusy(true);
     status('Bitte warten …');
     try {
       const firebase = await global.budgetQuestFirebaseReady;
-      await action(firebase);
+      await withTimeout(action(firebase));
       status(successMessage);
     } catch (error) {
       console.warn('BudgetQuest Firebase Authentication:', error);
@@ -96,15 +122,29 @@
     'Erfolgreich abgemeldet.'
   );
 
+  global.addEventListener('pageshow', () => {
+    resetPendingAuthState('Die unterbrochene Google-Anmeldung wurde zurückgesetzt. Du kannst die App weiterverwenden.');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      global.setTimeout(() => {
+        resetPendingAuthState('Die unterbrochene Google-Anmeldung wurde zurückgesetzt. Du kannst es erneut versuchen.');
+      }, 500);
+    }
+  });
+
   const initialize = async () => {
     renderUser(null);
     try {
       const firebase = await global.budgetQuestFirebaseReady;
       firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => {
+        resetPendingAuthState();
         status(messageFor(error), true);
       });
     } catch (error) {
       console.warn('BudgetQuest Firebase konnte nicht geladen werden:', error);
+      resetPendingAuthState();
       status('Firebase konnte nicht geladen werden. Die App funktioniert weiterhin lokal.', true);
     }
   };
