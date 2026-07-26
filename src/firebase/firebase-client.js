@@ -35,4 +35,15 @@
       firestoreApi
     });
   });
+
+  const loadModule = (src, marker) => {
+    if (document.querySelector(`script[${marker}]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.setAttribute(marker, '1');
+    document.head.appendChild(script);
+  };
+
+  loadModule('src/firebase/firebase-owner-controls.js?v=1', 'data-bq-owner-controls');
+  loadModule('home-affordability-fix.js?v=1', 'data-bq-home-affordability-fix');
 })(window);
