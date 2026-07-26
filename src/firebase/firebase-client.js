@@ -19,11 +19,17 @@
     import(sdkUrl('app')),
     import(sdkUrl('auth')),
     import(sdkUrl('firestore'))
-  ]).then(([appApi, authApi, firestoreApi]) => {
+  ]).then(async ([appApi, authApi, firestoreApi]) => {
     const app = appApi.initializeApp(firebaseConfig);
+    const auth = authApi.getAuth(app);
+
+    // Safari und installierte iPhone-Web-Apps sollen die Anmeldung innerhalb
+    // ihres jeweiligen App-Kontexts dauerhaft behalten.
+    await authApi.setPersistence(auth, authApi.browserLocalPersistence);
+
     return Object.freeze({
       app,
-      auth: authApi.getAuth(app),
+      auth,
       db: firestoreApi.getFirestore(app),
       authApi,
       firestoreApi
