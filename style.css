@@ -3,3 +3,5 @@
 .cloud-auth-status{margin-top:10px;line-height:1.45}.cloud-auth-error{color:var(--red)!important}.cloud-auth-state{display:flex;align-items:center;gap:8px;margin-top:10px;color:#b9d9cf;font-size:13px}.cloud-state-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #5de29a18}.cloud-account-email{overflow-wrap:anywhere}
 
 .google-sign-in{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;color:#202124;border:1px solid #dadce0}.google-sign-in:hover{background:#f8faff}.google-mark{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:18px;font-weight:900;color:#4285f4;background:#fff}
+
+.cloud-sync-controls{border-top:1px solid #2f5e52;padding-top:13px}.cloud-sync-panel{display:grid;gap:9px}.cloud-sync-panel p{margin:0}.cloud-sync-panel .btn{width:100%}.cloud-sync-title{display:flex;align-items:center;gap:8px}.cloud-sync-active{border-radius:13px;padding:12px;background:#5de29a0d;border:1px solid #5de29a38}

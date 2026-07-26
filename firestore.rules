@@ -12,10 +12,12 @@ service cloud.firestore {
 
     match /households/{householdId} {
       allow create: if signedIn()
+        && householdId == request.auth.uid
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.memberIds == [request.auth.uid];
 
-      allow read: if isMember(resource.data);
+      allow read: if isMember(resource.data)
+        || (signedIn() && householdId == request.auth.uid);
 
       allow update: if isMember(resource.data)
         && request.resource.data.ownerId == resource.data.ownerId

@@ -2,7 +2,7 @@
   'use strict';
 
   class CloudSyncService {
-    constructor({ storage, adapter, keys, onError = console.error }) {
+    constructor({ storage, adapter, keys, onError = console.error, onRemoteChange = null }) {
       if (!storage || typeof storage.subscribe !== 'function') {
         throw new Error('Ein abonnierbarer StorageService ist erforderlich.');
       }
@@ -11,17 +11,21 @@
       this.adapter = adapter;
       this.keys = new Set(keys || []);
       this.onError = onError;
+      this.onRemoteChange = onRemoteChange;
       this.applyingRemote = false;
       this.unsubscribeLocal = null;
       this.unsubscribeRemote = null;
     }
 
-    async start(context) {
+    async start(context, { initialStrategy = 'remote-first' } = {}) {
       this.stop();
       await this.adapter.connect(context);
 
       const snapshot = this.normalize(await this.adapter.pullAll());
-      if (Object.keys(snapshot.values).length) {
+      const hasRemoteValues = Object.keys(snapshot.values).length > 0;
+      if (initialStrategy === 'local-first') {
+        await this.adapter.replaceAll(this.storage.export(this.keys));
+      } else if (hasRemoteValues) {
         this.applySnapshot(snapshot);
       } else {
         await this.adapter.replaceAll(this.storage.export(this.keys));
@@ -59,18 +63,36 @@
       return { values: snapshot, deletedKeys: [] };
     }
 
+    equal(left, right) {
+      if (left === right) return true;
+      try {
+        return JSON.stringify(left) === JSON.stringify(right);
+      } catch (error) {
+        return false;
+      }
+    }
+
     applySnapshot({ values, deletedKeys }) {
+      let changed = false;
       this.applyingRemote = true;
       try {
         Object.entries(values).forEach(([key, value]) => {
-          if (this.keys.has(key)) this.storage.set(key, value);
+          if (!this.keys.has(key) || this.equal(this.storage.get(key, null), value)) return;
+          this.storage.set(key, value);
+          changed = true;
         });
         deletedKeys.forEach(key => {
-          if (this.keys.has(key)) this.storage.remove(key);
+          if (!this.keys.has(key) || !this.storage.has(key)) return;
+          this.storage.remove(key);
+          changed = true;
         });
       } finally {
         this.applyingRemote = false;
       }
+      if (changed && typeof this.onRemoteChange === 'function') {
+        this.onRemoteChange();
+      }
+      return changed;
     }
 
     stop() {

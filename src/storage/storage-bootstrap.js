@@ -35,6 +35,9 @@
     wealth: 'bq_wealth',
     transferLedger: 'bq_transfer_ledger',
     incomeSources: 'bq_income_sources',
-    receiptLearning: 'bq_receipt_learning_v1'
+    receiptLearning: 'bq_receipt_learning_v1',
+    cloudSyncEnabled: 'bq_cloud_sync_enabled',
+    cloudHouseholdId: 'bq_cloud_household_id',
+    cloudOwnerUserId: 'bq_cloud_owner_user_id'
   });
 })(window);

@@ -47,20 +47,27 @@
       <span class="cloud-state-dot"></span>
       <span>Google-Konto verbunden</span>
     </div>
+    <div id="firebaseCloudControls" class="cloud-sync-controls section">
+      <div class="tiny">Cloud-Status wird geprüft …</div>
+    </div>
     <button class="btn secondary section" data-firebase-auth type="button" onclick="budgetQuestSignOut()">Abmelden</button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Cloud-Synchronisation ist noch nicht aktiviert; lokale Daten wurden nicht hochgeladen.</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Google-Anmeldung aktiv.</div>
   `;
 
   function renderUser(user) {
     const element = container();
     if (!element) return;
     element.innerHTML = user ? signedInTemplate() : signedOutTemplate();
-    if (!user) return;
-
-    const name = element.querySelector('.cloud-account-name');
-    const email = element.querySelector('.cloud-account-email');
-    if (name) name.textContent = user.displayName || user.email || 'Google-Nutzer';
-    if (email) email.textContent = user.email || '';
+    if (user) {
+      const name = element.querySelector('.cloud-account-name');
+      const email = element.querySelector('.cloud-account-email');
+      if (name) name.textContent = user.displayName || user.email || 'Google-Nutzer';
+      if (email) email.textContent = user.email || '';
+    }
+    global.budgetQuestCurrentUser = user || null;
+    global.dispatchEvent(new CustomEvent('budgetquest-auth-changed', {
+      detail: { user: user || null }
+    }));
   }
 
   async function perform(action, successMessage) {

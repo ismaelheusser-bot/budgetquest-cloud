@@ -55,3 +55,23 @@ Die Firestore-Regeln erlauben den Zugriff ausschließlich angemeldeten Mitgliede
 ## Aktuelle Sicherheitsgrenze
 
 Die Firebase-Grundlage ist in `index.html` geladen, der `CloudSyncService` dagegen weiterhin nicht. Anmeldung und Firestore-Initialisierung übertragen deshalb noch keine Budget-, Profil- oder Transaktionsdaten. Bestehende lokale Daten bleiben unverändert erhalten. Die erste Migration erfordert weiterhin eine ausdrückliche Bestätigung in der App.
+
+
+## Persönliche Cloud-Synchronisation
+
+Nach der Google-Anmeldung kann der Benutzer die Synchronisation im Haushaltsdialog ausdrücklich aktivieren. BudgetQuest verwendet für den ersten persönlichen Haushalt die Firebase-UID als Haushalts-ID.
+
+Vor der ersten Übernahme wird unterschieden:
+
+- Sind noch keine Cloud-Daten vorhanden, muss der Upload des bestehenden lokalen Stands bestätigt werden.
+- Sind bereits Cloud-Daten vorhanden, muss das Ersetzen des lokalen Stands bestätigt werden.
+- Ohne Bestätigung bleibt die App vollständig lokal.
+- Die Verbindung kann pro Gerät getrennt werden, ohne lokale oder bestehende Cloud-Daten zu löschen.
+
+Cloud-Änderungen werden nur angewendet, wenn sich ein Wert tatsächlich unterscheidet. Dadurch entstehen keine Reload-Schleifen. Änderungen von einem anderen Gerät werden lokal gespeichert und anschließend durch einen einmaligen App-Reload sichtbar.
+
+Die Metadaten `bq_cloud_sync_enabled`, `bq_cloud_household_id` und `bq_cloud_owner_user_id` werden nicht in den gemeinsamen Cloud-Datensatz aufgenommen.
+
+## Noch ausstehend
+
+Die Regeln in `firestore.rules` müssen in der Firebase Console veröffentlicht werden, bevor der erste Cloud-Upload funktioniert. Die Einladung eines zweiten Haushaltsmitglieds folgt nach Angabe dessen Google-E-Mail-Adresse.
