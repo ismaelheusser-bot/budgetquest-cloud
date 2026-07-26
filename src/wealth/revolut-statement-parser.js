@@ -79,7 +79,12 @@
   }
 
   function cleanCurrency(value) {
-    const match = String(value || '').toUpperCase().match(/\b(CHF|EUR|USD|GBP)\b/);
+    const raw = String(value || '').trim().toUpperCase();
+    if (raw.includes('US$') || raw === '$') return 'USD';
+    if (raw.includes('€')) return 'EUR';
+    if (raw.includes('£')) return 'GBP';
+    if (raw.includes('₣')) return 'CHF';
+    const match = raw.match(/\b(CHF|EUR|USD|GBP)\b/);
     return match ? match[1] : String(value || '').trim().toUpperCase().slice(0, 5);
   }
 
@@ -127,6 +132,19 @@
       (left, right) => splitLine(lines[0], right).length - splitLine(lines[0], left).length
     )[0];
     const headers = splitLine(lines[0], separator);
+    const normalisedHeaders = headers.map(normalise);
+    const transactionHistoryHeaders = [
+      'date', 'ticker', 'type', 'quantity', 'price per share',
+      'total amount', 'currency', 'fx rate'
+    ];
+    if (transactionHistoryHeaders.every(header => normalisedHeaders.includes(header))) {
+      return {
+        positions: [],
+        rejected: lines.length - 1,
+        fileName,
+        kind: 'transaction_history'
+      };
+    }
     const columns = {
       symbol: findColumn(headers, ['symbol', 'ticker', 'isin', 'instrument code']),
       name: findColumn(headers, ['asset name', 'instrument name', 'security name', 'name', 'asset', 'instrument']),
@@ -137,7 +155,7 @@
       type: findColumn(headers, ['asset type', 'asset class', 'security type', 'product', 'type', 'anlageklasse'])
     };
     if (columns.quantity < 0 || (columns.value < 0 && columns.price < 0) || (columns.name < 0 && columns.symbol < 0)) {
-      return { positions: [], rejected: lines.length - 1, fileName };
+      return { positions: [], rejected: lines.length - 1, fileName, kind: 'unsupported' };
     }
     let rejected = 0;
     const positions = lines.slice(1).map((line, row) => {
@@ -155,28 +173,56 @@
       if (!item) rejected += 1;
       return item;
     });
-    return { positions: mergePositions(positions), rejected, fileName };
+    return { positions: mergePositions(positions), rejected, fileName, kind: 'holdings' };
   }
 
   function parseText(text, fileName = 'Revolut.pdf') {
     const lines = String(text || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    const pattern = /^([A-Z0-9.-]{2,12})\s+(.+?)\s+([0-9][0-9'.,]*)\s+([0-9][0-9'.,]*)\s+([0-9][0-9'.,]*)\s+(CHF|EUR|USD|GBP)$/i;
+    const statementPeriod = String(text || '').match(/Period\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+-\s+(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})/i);
+    const monthNumbers = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+    const dateParts = statementPeriod?.[1]?.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+    const statementDate = dateParts && monthNumbers[dateParts[2].toLowerCase()]
+      ? `${dateParts[3]}-${monthNumbers[dateParts[2].toLowerCase()]}-${dateParts[1].padStart(2, '0')}`
+      : null;
+    const revolutPattern = /^([A-Z0-9.-]{1,12})\s+(.+?)\s+([A-Z]{2}[A-Z0-9]{9}\d)\s+([0-9][0-9'.,]*)\s+((?:US\$|CHF|EUR|USD|GBP|€|£|₣)\s*[0-9][0-9'.,]*)\s+((?:US\$|CHF|EUR|USD|GBP|€|£|₣)\s*[0-9][0-9'.,]*)\s+[0-9][0-9.,]*\s*%$/i;
+    const fallbackPattern = /^([A-Z0-9.-]{2,12})\s+(.+?)\s+([0-9][0-9'.,]*)\s+([0-9][0-9'.,]*)\s+([0-9][0-9'.,]*)\s+(CHF|EUR|USD|GBP)$/i;
     let rejected = 0;
+    let portfolioCurrency = '';
+    let inPortfolio = false;
     const positions = lines.map((line, row) => {
-      const match = line.match(pattern);
-      if (!match) return null;
-      const item = position({
-        symbol: match[1],
-        name: match[2],
-        quantity: match[3],
-        price: match[4],
-        value: match[5],
-        currency: match[6]
+      const heading = line.match(/^(USD|EUR|CHF|GBP)\s+Portfolio breakdown$/i);
+      if (heading) {
+        portfolioCurrency = heading[1].toUpperCase();
+        inPortfolio = true;
+        return null;
+      }
+      if (/^(Positions Value|Cash value|Total|.+ Transactions|Glossary)\b/i.test(line)) {
+        inPortfolio = false;
+        return null;
+      }
+      const revolutMatch = inPortfolio ? line.match(revolutPattern) : null;
+      const fallbackMatch = line.match(fallbackPattern);
+      if (!revolutMatch && !fallbackMatch) return null;
+      const item = revolutMatch ? position({
+        symbol: revolutMatch[1],
+        name: revolutMatch[2],
+        quantity: revolutMatch[4],
+        price: revolutMatch[5],
+        value: revolutMatch[6],
+        currency: portfolioCurrency || revolutMatch[6],
+        type: 'Depot'
+      }, row) : position({
+        symbol: fallbackMatch[1],
+        name: fallbackMatch[2],
+        quantity: fallbackMatch[3],
+        price: fallbackMatch[4],
+        value: fallbackMatch[5],
+        currency: fallbackMatch[6]
       }, row);
       if (!item) rejected += 1;
       return item;
     });
-    return { positions: mergePositions(positions), rejected, fileName };
+    return { positions: mergePositions(positions), rejected, fileName, statementDate };
   }
 
   function totalsByCurrency(positions) {
