@@ -11,12 +11,14 @@
 
   const messageFor = error => {
     const messages = {
-      'auth/email-already-in-use': 'Für diese E-Mail besteht bereits ein Konto.',
-      'auth/invalid-credential': 'E-Mail-Adresse oder Passwort ist nicht korrekt.',
-      'auth/invalid-email': 'Bitte eine gültige E-Mail-Adresse eingeben.',
-      'auth/operation-not-allowed': 'E-Mail/Passwort muss zuerst in Firebase Authentication aktiviert werden.',
+      'auth/account-exists-with-different-credential': 'Für diese E-Mail besteht bereits eine andere Anmeldemethode.',
+      'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen.',
+      'auth/network-request-failed': 'Keine Verbindung zu Google. Bitte Internetverbindung prüfen.',
+      'auth/operation-not-allowed': 'Google muss zuerst in Firebase Authentication aktiviert werden.',
+      'auth/popup-blocked': 'Das Google-Fenster wurde blockiert. Bitte Pop-ups für BudgetQuest erlauben.',
+      'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
-      'auth/weak-password': 'Das Passwort muss mindestens sechs Zeichen enthalten.'
+      'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
     };
     return messages[error?.code] || 'Anmeldung derzeit nicht möglich. Bitte später nochmals probieren.';
   };
@@ -29,24 +31,21 @@
 
   const signedOutTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
-    <p>Melde dich an oder erstelle ein Konto. Deine Budgetdaten bleiben bis zur ausdrücklich bestätigten Migration auf diesem Gerät.</p>
-    <form class="form section" onsubmit="budgetQuestSignIn(event)">
-      <label>E-Mail-Adresse<input id="firebaseEmail" type="email" autocomplete="email" required></label>
-      <label>Passwort<input id="firebasePassword" type="password" minlength="6" autocomplete="current-password" required></label>
-      <div class="actions">
-        <button class="btn" data-firebase-auth type="submit">Anmelden</button>
-        <button class="btn secondary" data-firebase-auth type="button" onclick="budgetQuestRegister()">Konto erstellen</button>
-      </div>
-    </form>
+    <p>Melde dich sicher mit deinem Google-Konto an. Deine Budgetdaten bleiben bis zur ausdrücklich bestätigten Migration auf diesem Gerät.</p>
+    <button class="btn google-sign-in section" data-firebase-auth type="button" onclick="budgetQuestGoogleSignIn()">
+      <span class="google-mark" aria-hidden="true">G</span>
+      <span>Mit Google anmelden</span>
+    </button>
     <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Noch nicht angemeldet.</div>
   `;
 
-  const signedInTemplate = user => `
+  const signedInTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
-    <p>Angemeldet als <b class="cloud-account-email"></b></p>
+    <p>Angemeldet als <b class="cloud-account-name"></b></p>
+    <div class="cloud-account-email tiny"></div>
     <div class="cloud-auth-state">
       <span class="cloud-state-dot"></span>
-      <span>${user.emailVerified ? 'E-Mail bestätigt' : 'E-Mail noch nicht bestätigt'}</span>
+      <span>Google-Konto verbunden</span>
     </div>
     <button class="btn secondary section" data-firebase-auth type="button" onclick="budgetQuestSignOut()">Abmelden</button>
     <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Cloud-Synchronisation ist noch nicht aktiviert; lokale Daten wurden nicht hochgeladen.</div>
@@ -55,20 +54,13 @@
   function renderUser(user) {
     const element = container();
     if (!element) return;
-    element.innerHTML = user ? signedInTemplate(user) : signedOutTemplate();
-    if (user) {
-      const email = element.querySelector('.cloud-account-email');
-      if (email) email.textContent = user.email || 'unbekannt';
-    }
-  }
+    element.innerHTML = user ? signedInTemplate() : signedOutTemplate();
+    if (!user) return;
 
-  async function credentials() {
-    const email = document.getElementById('firebaseEmail')?.value.trim();
-    const password = document.getElementById('firebasePassword')?.value || '';
-    if (!email || password.length < 6) {
-      throw Object.assign(new Error('Ungültige Eingabe'), { code: 'auth/weak-password' });
-    }
-    return { email, password };
+    const name = element.querySelector('.cloud-account-name');
+    const email = element.querySelector('.cloud-account-email');
+    if (name) name.textContent = user.displayName || user.email || 'Google-Nutzer';
+    if (email) email.textContent = user.email || '';
   }
 
   async function perform(action, successMessage) {
@@ -86,23 +78,11 @@
     }
   }
 
-  global.budgetQuestSignIn = event => {
-    event?.preventDefault();
-    return perform(async firebase => {
-      const { email, password } = await credentials();
-      await firebase.authApi.signInWithEmailAndPassword(firebase.auth, email, password);
-    }, 'Erfolgreich angemeldet.');
-  };
-
-  global.budgetQuestRegister = () => perform(async firebase => {
-    const { email, password } = await credentials();
-    const credential = await firebase.authApi.createUserWithEmailAndPassword(
-      firebase.auth,
-      email,
-      password
-    );
-    await firebase.authApi.sendEmailVerification(credential.user);
-  }, 'Konto erstellt. Bitte bestätige die E-Mail in deinem Postfach.');
+  global.budgetQuestGoogleSignIn = () => perform(async firebase => {
+    const provider = new firebase.authApi.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await firebase.authApi.signInWithPopup(firebase.auth, provider);
+  }, 'Erfolgreich mit Google angemeldet.');
 
   global.budgetQuestSignOut = () => perform(
     firebase => firebase.authApi.signOut(firebase.auth),
