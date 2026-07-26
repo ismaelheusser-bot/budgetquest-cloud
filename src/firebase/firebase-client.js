@@ -35,4 +35,11 @@
       firestoreApi
     });
   });
+
+  if (!document.querySelector('script[data-bq-owner-controls]')) {
+    const script = document.createElement('script');
+    script.src = 'src/firebase/firebase-owner-controls.js?v=1';
+    script.dataset.bqOwnerControls = '1';
+    document.head.appendChild(script);
+  }
 })(window);
