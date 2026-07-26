@@ -118,7 +118,7 @@ async function importHousehold(file){
  finally{const input=document.getElementById('icloudImportInput');if(input)input.value=''}
 }
 function installICloudControls(){
- const box=document.querySelector('.cloud-note');if(!box)return;
+ const box=document.getElementById('icloudCloudNote')||document.querySelector('.cloud-note:not(#firebaseAccount)');if(!box)return;
  const last=profileStorage.get(profileStorageKeys.lastCloudBackup,null);
  const revision=profileStorage.get(profileStorageKeys.sharedRevision,null)||'0';
  const editor=profileStorage.get(profileStorageKeys.lastCloudEditor,null)||activeProfile()?.name||'';

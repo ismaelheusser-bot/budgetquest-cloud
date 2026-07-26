@@ -44,4 +44,14 @@ Vor der Live-Aktivierung werden benötigt:
 5. festgelegte Haushalts- und Mitglieder-IDs.
 6. ausdrückliche Freigabe der ersten lokalen Datenmigration.
 
-Die vorbereiteten Klassen sind noch nicht in `index.html` geladen und übertragen deshalb keine Daten.
+## Firebase-Grundlage
+
+Die Web-App `budgetquest-cloud` ist mit dem Firebase JavaScript SDK 12.16.0 konfiguriert. Im Haushaltsdialog steht eine E-Mail-/Passwort-Anmeldung zur Verfügung. Die Anmeldung allein startet keine Datensynchronisation.
+
+Vor der ersten Anmeldung muss in der Firebase Console der Anbieter **Authentication → Anmeldemethode → E-Mail/Passwort** aktiviert werden. Neue Konten erhalten eine Bestätigungs-E-Mail.
+
+Die Firestore-Regeln erlauben den Zugriff ausschließlich angemeldeten Mitgliedern eines Haushalts. Ein neuer Haushalt wird zunächst nur für seinen Eigentümer angelegt. Die Regeln müssen vor einer späteren Cloud-Aktivierung mit der Firebase CLI veröffentlicht und im Rules Simulator geprüft werden.
+
+## Aktuelle Sicherheitsgrenze
+
+Die Firebase-Grundlage ist in `index.html` geladen, der `CloudSyncService` dagegen weiterhin nicht. Anmeldung und Firestore-Initialisierung übertragen deshalb noch keine Budget-, Profil- oder Transaktionsdaten. Bestehende lokale Daten bleiben unverändert erhalten. Die erste Migration erfordert weiterhin eine ausdrückliche Bestätigung in der App.
