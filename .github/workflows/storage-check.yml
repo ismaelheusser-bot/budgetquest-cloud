@@ -27,4 +27,4 @@ jobs:
         with:
           node-version: '22'
       - name: Speicher und Offline-App prüfen
-        run: node tests/storage-service.test.js && node tests/cloud-sync-service.test.js && node tests/firebase-foundation.test.js && node tests/firebase-cloud-controller.test.js
+        run: node tests/storage-service.test.js && node tests/cloud-sync-service.test.js && node tests/firebase-foundation.test.js && node tests/firebase-cloud-controller.test.js && node tests/revolut-csv-adapter.test.js
