@@ -5,6 +5,10 @@
   let authBusy = false;
 
   const container = () => document.getElementById('firebaseAccount');
+  const isStandalone = () =>
+    global.matchMedia?.('(display-mode: standalone)')?.matches
+    || global.navigator?.standalone === true;
+
   const status = (message, isError = false) => {
     const element = document.getElementById('firebaseAuthStatus');
     if (!element) return;
@@ -21,6 +25,7 @@
       'auth/popup-blocked': 'Das Google-Fenster wurde blockiert. Bitte Pop-ups für BudgetQuest erlauben.',
       'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen. Die App kann normal weiterverwendet werden.',
       'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet und wurde zurückgesetzt. Bitte erneut versuchen.',
+      'auth/redirect-cancelled-by-user': 'Google-Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
       'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
     };
@@ -60,7 +65,7 @@
       <span class="google-mark" aria-hidden="true">G</span>
       <span>Mit Google anmelden</span>
     </button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Noch nicht angemeldet.</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isStandalone() ? 'Installierte App: Anmeldung wird innerhalb dieser App gespeichert.' : 'Noch nicht angemeldet.'}</div>
   `;
 
   const signedInTemplate = () => `
@@ -111,11 +116,32 @@
     }
   }
 
-  global.budgetQuestGoogleSignIn = () => perform(async firebase => {
-    const provider = new firebase.authApi.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    await firebase.authApi.signInWithPopup(firebase.auth, provider);
-  }, 'Erfolgreich mit Google angemeldet.');
+  global.budgetQuestGoogleSignIn = async () => {
+    if (authBusy) return;
+    const providerFor = firebase => {
+      const provider = new firebase.authApi.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      return provider;
+    };
+
+    if (!isStandalone()) {
+      return perform(
+        firebase => firebase.authApi.signInWithPopup(firebase.auth, providerFor(firebase)),
+        'Erfolgreich mit Google angemeldet.'
+      );
+    }
+
+    setBusy(true);
+    status('Google-Anmeldung wird geöffnet …');
+    try {
+      const firebase = await global.budgetQuestFirebaseReady;
+      await firebase.authApi.signInWithRedirect(firebase.auth, providerFor(firebase));
+    } catch (error) {
+      console.warn('BudgetQuest Firebase Redirect-Anmeldung:', error);
+      setBusy(false);
+      status(messageFor(error), true);
+    }
+  };
 
   global.budgetQuestSignOut = () => perform(
     firebase => firebase.authApi.signOut(firebase.auth),
@@ -127,7 +153,7 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
+    if (!document.hidden && !isStandalone()) {
       global.setTimeout(() => {
         resetPendingAuthState('Die unterbrochene Google-Anmeldung wurde zurückgesetzt. Du kannst es erneut versuchen.');
       }, 500);
@@ -138,6 +164,12 @@
     renderUser(null);
     try {
       const firebase = await global.budgetQuestFirebaseReady;
+      try {
+        await firebase.authApi.getRedirectResult(firebase.auth);
+      } catch (error) {
+        console.warn('BudgetQuest Firebase Redirect-Ergebnis:', error);
+        status(messageFor(error), true);
+      }
       firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => {
         resetPendingAuthState();
         status(messageFor(error), true);
