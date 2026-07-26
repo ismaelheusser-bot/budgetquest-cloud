@@ -46,9 +46,9 @@ Vor der Live-Aktivierung werden benötigt:
 
 ## Firebase-Grundlage
 
-Die Web-App `budgetquest-cloud` ist mit dem Firebase JavaScript SDK 12.16.0 konfiguriert. Im Haushaltsdialog steht eine E-Mail-/Passwort-Anmeldung zur Verfügung. Die Anmeldung allein startet keine Datensynchronisation.
+Die Web-App `budgetquest-cloud` ist mit dem Firebase JavaScript SDK 12.16.0 konfiguriert. Im Haushaltsdialog steht eine Google-Anmeldung per sicherem Popup zur Verfügung. Die Anmeldung allein startet keine Datensynchronisation.
 
-Vor der ersten Anmeldung muss in der Firebase Console der Anbieter **Authentication → Anmeldemethode → E-Mail/Passwort** aktiviert werden. Neue Konten erhalten eine Bestätigungs-E-Mail.
+In der Firebase Console ist der Anbieter **Google** aktiviert. BudgetQuest speichert kein eigenes Passwort; Firebase übernimmt die Anmeldung beim ausgewählten Google-Konto.
 
 Die Firestore-Regeln erlauben den Zugriff ausschließlich angemeldeten Mitgliedern eines Haushalts. Ein neuer Haushalt wird zunächst nur für seinen Eigentümer angelegt. Die Regeln müssen vor einer späteren Cloud-Aktivierung mit der Firebase CLI veröffentlicht und im Rules Simulator geprüft werden.
 
