@@ -26,7 +26,7 @@
       if (initialStrategy === 'local-first') {
         await this.adapter.replaceAll(this.storage.export(this.keys));
       } else if (hasRemoteValues) {
-        this.applySnapshot(snapshot);
+        this.applySnapshot(snapshot, { notify: false });
       } else {
         await this.adapter.replaceAll(this.storage.export(this.keys));
       }
@@ -40,9 +40,12 @@
       });
 
       if (typeof this.adapter.subscribe === 'function') {
+        let initialRemoteSnapshot = true;
         this.unsubscribeRemote = this.adapter.subscribe(remote => {
           try {
-            this.applySnapshot(this.normalize(remote));
+            const normalized = this.normalize(remote);
+            this.applySnapshot(normalized, { notify: !initialRemoteSnapshot });
+            initialRemoteSnapshot = false;
           } catch (error) {
             this.onError(error);
           }
@@ -72,7 +75,7 @@
       }
     }
 
-    applySnapshot({ values, deletedKeys }) {
+    applySnapshot({ values, deletedKeys }, { notify = true } = {}) {
       let changed = false;
       this.applyingRemote = true;
       try {
@@ -89,7 +92,7 @@
       } finally {
         this.applyingRemote = false;
       }
-      if (changed && typeof this.onRemoteChange === 'function') {
+      if (changed && notify && typeof this.onRemoteChange === 'function') {
         this.onRemoteChange();
       }
       return changed;
