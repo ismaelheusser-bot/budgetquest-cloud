@@ -16,8 +16,13 @@ const rules = read('firestore.rules');
 
 assert.match(client, /projectId:\s*'budgetquest-cloud'/);
 assert.match(client, /budgetQuestFirebaseReady/);
+assert.match(client, /setPersistence\(auth, authApi\.browserLocalPersistence\)/);
 assert.match(authUi, /GoogleAuthProvider/);
 assert.match(authUi, /signInWithPopup/);
+assert.match(authUi, /signInWithRedirect/);
+assert.match(authUi, /getRedirectResult/);
+assert.match(authUi, /display-mode: standalone/);
+assert.match(authUi, /navigator\?\.standalone/);
 assert.match(authUi, /budgetQuestGoogleSignIn/);
 assert.doesNotMatch(authUi, /signInWithEmailAndPassword/);
 assert.match(authUi, /firebaseCloudControls/);
@@ -30,7 +35,7 @@ const firebasePosition = index.indexOf('src/firebase/firebase-client.js');
 const appPosition = index.indexOf('app.js?v=');
 assert(storagePosition >= 0 && firebasePosition > storagePosition && appPosition > firebasePosition);
 assert.match(index, /id="firebaseAccount"/);
-assert.match(worker, /budgetquest-v68/);
+assert.match(worker, /budgetquest-v69/);
 assert.match(worker, /src\/firebase\/firebase-client\.js/);
 assert.match(worker, /src\/firebase\/firebase-auth-ui\.js/);
 assert.match(rules, /request\.auth\.uid in data\.memberIds/);
@@ -39,4 +44,4 @@ assert.match(index, /cloud-sync-service\.js/);
 assert.match(index, /firebase-firestore-adapter\.js/);
 assert.match(index, /firebase-cloud-controller\.js/);
 
-console.log('✅ Firebase-Grundlage, gemeinsame Haushalte und stabiler Cloud-Start sind eingebunden.');
+console.log('✅ Firebase-Grundlage, persistente PWA-Anmeldung und stabiler Cloud-Start sind eingebunden.');
