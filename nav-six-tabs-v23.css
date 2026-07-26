@@ -11,7 +11,7 @@
     max-width:none!important;
     transform:none!important;
     display:grid!important;
-    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
     grid-template-rows:50px!important;
     gap:1px!important;
     padding:4px!important;
@@ -39,7 +39,7 @@
     display:block!important;
     visibility:visible!important;
     opacity:1!important;
-    grid-column:6!important;
+    grid-column:7!important;
     font-size:clamp(6.5px,2vw,8.5px)!important;
   }
   .fab{bottom:calc(72px + env(safe-area-inset-bottom))!important}
