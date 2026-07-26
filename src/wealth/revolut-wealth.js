@@ -7,6 +7,7 @@
   const pdfVersion = '4.10.38';
   let pending = [];
   let pendingFiles = [];
+  let pendingStatementDates = [];
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -148,6 +149,8 @@
     const status = document.getElementById('revolutImportStatus');
     pending = [];
     pendingFiles = [];
+    pendingStatementDates = [];
+    let transactionHistoryDetected = false;
     status.textContent = 'Auszüge werden gelesen …';
     try {
       for (const file of Array.from(files || [])) {
@@ -156,12 +159,16 @@
           : parser.parseCsv(await file.text(), file.name);
         pending.push(...result.positions);
         pendingFiles.push(file.name);
+        if (result.statementDate) pendingStatementDates.push(result.statementDate);
+        if (result.kind === 'transaction_history') transactionHistoryDetected = true;
       }
       const unique = new Map(pending.map(item => [item.id, item]));
       pending = [...unique.values()];
       status.textContent = pending.length
         ? `${pending.length} aktuelle Depot-/Kryptopositionen erkannt.`
-        : 'Keine sicheren Bestandspositionen erkannt. Bitte einen aktuellen Depot- oder Krypto-Auszug verwenden.';
+        : transactionHistoryDetected
+          ? 'Transaktionshistorie erkannt. Sie enthält vergangene Ausführungskurse, aber keine aktuellen Marktwerte und wird deshalb nicht als aktueller Bestand übernommen.'
+          : 'Keine sicheren Bestandspositionen erkannt. Bitte einen aktuellen Depot- oder Krypto-Auszug verwenden.';
     } catch (error) {
       console.warn('Revolut-Vermögensimport:', error);
       status.textContent = 'Auszug konnte nicht gelesen werden. Deine bestehenden Daten wurden nicht verändert.';
@@ -180,12 +187,13 @@
     const next = wealth && typeof wealth === 'object' ? { ...wealth } : {};
     next.revolut = {
       positions: selected,
-      statementDate: new Date().toISOString(),
+      statementDate: pendingStatementDates.sort().at(-1) || new Date().toISOString(),
       sourceFiles: pendingFiles
     };
     storage.set(keys.wealth, next);
     pending = [];
     pendingFiles = [];
+    pendingStatementDates = [];
     document.getElementById('revolutImportDialog').close();
     render();
   }
