@@ -46,6 +46,7 @@
       if (!this.exists) {
         data.ownerId = this.userId;
         data.memberIds = [this.userId];
+        data.invitedEmails = [];
         data.createdAt = this.firestore.serverTimestamp();
       }
       await this.firestore.setDoc(this.reference, data, { merge: true });
