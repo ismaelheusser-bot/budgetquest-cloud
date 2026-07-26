@@ -26,7 +26,7 @@ const firebasePosition = index.indexOf('src/firebase/firebase-client.js');
 const appPosition = index.indexOf('app.js?v=');
 assert(storagePosition >= 0 && firebasePosition > storagePosition && appPosition > firebasePosition);
 assert.match(index, /id="firebaseAccount"/);
-assert.match(worker, /budgetquest-v64/);
+assert.match(worker, /budgetquest-v65/);
 assert.match(worker, /src\/firebase\/firebase-client\.js/);
 assert.match(worker, /src\/firebase\/firebase-auth-ui\.js/);
 assert.match(rules, /request\.auth\.uid in data\.memberIds/);
