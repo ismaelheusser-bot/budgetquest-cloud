@@ -16,6 +16,7 @@
       this.reference = null;
       this.userId = null;
       this.lastValues = {};
+      this.exists = false;
     }
 
     async connect({ householdId, userId }) {
@@ -29,18 +30,26 @@
     async pullAll() {
       this.assertConnected();
       const snapshot = await this.firestore.getDoc(this.reference);
-      const values = snapshot.exists() ? snapshot.data().values || {} : {};
+      this.exists = snapshot.exists();
+      const values = this.exists ? snapshot.data().values || {} : {};
       this.lastValues = values;
       return { values };
     }
 
     async replaceAll(values) {
       this.assertConnected();
-      await this.firestore.setDoc(this.reference, {
+      const data = {
         values,
         updatedAt: this.firestore.serverTimestamp(),
         updatedBy: this.userId
-      }, { merge: true });
+      };
+      if (!this.exists) {
+        data.ownerId = this.userId;
+        data.memberIds = [this.userId];
+        data.createdAt = this.firestore.serverTimestamp();
+      }
+      await this.firestore.setDoc(this.reference, data, { merge: true });
+      this.exists = true;
       this.lastValues = values;
     }
 
