@@ -64,9 +64,13 @@ assert.equal(transactionResult.positions.length, 0, 'Transaktionshistorie darf n
 assert.equal(transactionResult.kind, 'transaction_history');
 
 const ui = fs.readFileSync(path.join(root, 'src/wealth/revolut-wealth.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert.match(ui, /keys\.wealth/);
 assert.match(ui, /Geprüfte Bestände übernehmen/);
-assert.match(ui, /bisherigen Revolut-Bestand ersetzen/);
+assert.match(ui, /retainedPositions/);
+assert.match(ui, /Krypto folgt später/);
 assert.doesNotMatch(ui, /keys\.transactions|bq_tx/);
+assert.match(index, /id="revolut" class="screen"/);
+assert.match(index, /data-target="revolut"/);
 
 console.log('✅ Revolut-Vermögen: Depot, Krypto, Währungen und Schutz vor Kontobuchungen geprüft.');
