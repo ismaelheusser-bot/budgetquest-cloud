@@ -30,6 +30,8 @@ assert.match(worker, /budgetquest-v63/);
 assert.match(worker, /src\/firebase\/firebase-client\.js/);
 assert.match(worker, /src\/firebase\/firebase-auth-ui\.js/);
 assert.match(rules, /request\.auth\.uid in data\.memberIds/);
-assert.doesNotMatch(index, /cloud-sync-service\.js/);
+assert.match(index, /cloud-sync-service\.js/);
+assert.match(index, /firebase-firestore-adapter\.js/);
+assert.match(index, /firebase-cloud-controller\.js/);
 
 console.log('✅ Firebase-Grundlage und bestätigungspflichtige Cloud-Steuerung sind eingebunden.');
