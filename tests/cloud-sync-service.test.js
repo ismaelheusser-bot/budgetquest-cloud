@@ -38,10 +38,12 @@ async function main() {
   const keys = window.BudgetQuestStorageKeys;
   const calls = [];
   let remoteListener = null;
+  let remoteSnapshot = { values: {} };
+  let remoteChanges = 0;
 
   const adapter = {
     async connect(contextValue) { calls.push(['connect', contextValue]); },
-    async pullAll() { return { values: {} }; },
+    async pullAll() { return remoteSnapshot; },
     async replaceAll(values) { calls.push(['replaceAll', values]); },
     async set(key, value) { calls.push(['set', key, value]); },
     async remove(key) { calls.push(['remove', key]); },
@@ -52,7 +54,8 @@ async function main() {
     storage,
     adapter,
     keys: Object.values(keys),
-    onError: error => { throw error; }
+    onError: error => { throw error; },
+    onRemoteChange: () => { remoteChanges += 1; }
   });
 
   await sync.start({ householdId: 'haushalt-1', userId: 'user-1' });
@@ -69,13 +72,31 @@ async function main() {
   remoteListener({ values: { [keys.household]: 'Cloud-Stand' }, deletedKeys: [] });
   assert.equal(storage.get(keys.household), 'Cloud-Stand');
   assert.equal(calls.length, callCount, 'Cloud-Änderungen dürfen nicht zurückgesendet werden.');
+  assert.equal(remoteChanges, 1);
+
+  remoteListener({ values: { [keys.household]: 'Cloud-Stand' }, deletedKeys: [] });
+  assert.equal(remoteChanges, 1, 'Identische Cloud-Stände dürfen keinen Reload auslösen.');
 
   remoteListener({ values: {}, deletedKeys: [keys.household] });
   assert.equal(storage.has(keys.household), false);
   assert.equal(calls.length, callCount, 'Cloud-Löschungen dürfen nicht zurückgesendet werden.');
+  assert.equal(remoteChanges, 2);
 
   sync.stop();
   assert.equal(remoteListener, null);
+
+  storage.set(keys.household, 'Bewusster lokaler Erststand');
+  remoteSnapshot = { values: { [keys.household]: 'Vorhandener Cloud-Stand' } };
+  calls.length = 0;
+  await sync.start(
+    { householdId: 'haushalt-1', userId: 'user-1' },
+    { initialStrategy: 'local-first' }
+  );
+  assert.equal(calls[1][0], 'replaceAll');
+  assert.equal(calls[1][1][keys.household], 'Bewusster lokaler Erststand');
+  assert.equal(storage.get(keys.household), 'Bewusster lokaler Erststand');
+
+  sync.stop();
   console.log('✅ CloudSyncService-Prüfung bestanden.');
 }
 
