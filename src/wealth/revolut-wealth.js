@@ -31,7 +31,7 @@
   }
 
   function positionsMarkup(positions) {
-    if (!positions.length) return '<div class="empty">Noch kein Revolut-Depot oder Kryptobestand importiert.</div>';
+    if (!positions.length) return '<div class="empty">Noch keine Positionen importiert.</div>';
     return positions.map(item => `
       <div class="revolut-position">
         <span class="revolut-asset-icon">${item.category === 'crypto' ? '₿' : '📈'}</span>
@@ -51,28 +51,63 @@
     const positions = Array.isArray(data?.positions) ? data.positions : [];
     const depot = positions.filter(item => item.category === 'depot');
     const crypto = positions.filter(item => item.category === 'crypto');
+    const statementDate = data?.statementDate
+      ? new Date(`${String(data.statementDate).slice(0, 10)}T12:00:00`).toLocaleDateString('de-CH')
+      : '–';
     section.innerHTML = `
-      <div class="card revolut-wealth-card">
-        <div class="section-head">
-          <div><h3>Revolut Vermögen</h3><div class="tiny">Nur Depot und Krypto – keine Kontobuchungen</div></div>
-          <button class="btn secondary" type="button" onclick="budgetQuestOpenRevolutImport()">Auszug importieren</button>
-        </div>
-        <div class="revolut-total">${totalsMarkup(positions)}</div>
-        <div class="revolut-groups">
-          <div><span>📈 Depot</span><b>${depot.length} Positionen</b></div>
-          <div><span>₿ Krypto</span><b>${crypto.length} Positionen</b></div>
-          <div><span>Stand</span><b>${data?.statementDate ? new Date(data.statementDate).toLocaleDateString('de-CH') : '–'}</b></div>
-        </div>
-        <div class="revolut-position-list">${positionsMarkup(positions)}</div>
+      <div class="section-head revolut-page-head">
+        <div><div class="eyebrow">Vermögen</div><h2>Revolut</h2><div class="tiny">Depot und Krypto auf einer eigenen Seite</div></div>
+        <button class="btn" type="button" onclick="budgetQuestOpenRevolutImport()">PDF-Auszug aktualisieren</button>
       </div>
+      <div class="revolut-page-hero section">
+        <div><span>Aktueller Bestand</span><div class="revolut-total">${totalsMarkup(positions)}</div><small>Summen bewusst nach Währung getrennt</small></div>
+        <div class="revolut-page-mark">R</div>
+      </div>
+      <div class="revolut-groups section">
+        <div><span>📈 Depot</span><b>${depot.length} Positionen</b></div>
+        <div><span>₿ Krypto</span><b>${crypto.length} Positionen</b></div>
+        <div><span>Stand des Auszugs</span><b>${statementDate}</b></div>
+      </div>
+      <div class="revolut-section-grid section">
+        <div class="card revolut-wealth-card">
+          <div class="section-head">
+            <div><h3>📈 Aktien & ETF</h3><div class="tiny">${depot.length ? 'Aktueller Revolut-Depotauszug' : 'Noch kein Depotauszug importiert'}</div></div>
+            <div class="revolut-section-total">${totalsMarkup(depot)}</div>
+          </div>
+          <div class="revolut-position-list">${positionsMarkup(depot)}</div>
+        </div>
+        <div class="card revolut-wealth-card">
+          <div class="section-head">
+            <div><h3>₿ Krypto</h3><div class="tiny">${crypto.length ? 'Aktueller Revolut-Kryptobestand' : 'Für den späteren Krypto-Auszug vorbereitet'}</div></div>
+            <div class="revolut-section-total">${totalsMarkup(crypto)}</div>
+          </div>
+          ${crypto.length
+            ? `<div class="revolut-position-list">${positionsMarkup(crypto)}</div>`
+            : '<div class="revolut-crypto-empty"><span>₿</span><b>Krypto folgt später</b><p>Dein Depot bleibt beim späteren Krypto-Import erhalten.</p><button class="btn secondary" type="button" onclick="budgetQuestOpenRevolutImport()">Krypto-Auszug hinzufügen</button></div>'}
+        </div>
+      </div>
+      <div class="info-note section">BudgetQuest übernimmt auf dieser Seite nur Depot- und Kryptobestände. Konto-, Karten- und Zahlungsbuchungen bleiben ausgeschlossen.</div>
+    `;
+    renderDashboardEntry(positions, statementDate);
+  }
+
+  function renderDashboardEntry(positions, statementDate) {
+    const entry = document.getElementById('revolutDashboardEntry');
+    if (!entry) return;
+    entry.innerHTML = `
+      <button type="button" class="card revolut-dashboard-button" onclick="budgetQuestOpenRevolutPage()">
+        <span class="revolut-dashboard-icon">R</span>
+        <span><b>Revolut Vermögen</b><small>${positions.length ? `${positions.length} Positionen · Stand ${statementDate}` : 'Depot und Krypto verwalten'}</small></span>
+        <span class="revolut-dashboard-values">${positions.length ? totalsMarkup(positions) : 'Öffnen ›'}</span>
+      </button>
     `;
   }
 
   function ensureUi() {
     const today = document.getElementById('today');
-    if (today && !document.getElementById('revolutWealth')) {
+    if (today && !document.getElementById('revolutDashboardEntry')) {
       const section = document.createElement('section');
-      section.id = 'revolutWealth';
+      section.id = 'revolutDashboardEntry';
       section.className = 'section';
       today.querySelector('.hero')?.after(section);
     }
@@ -140,7 +175,7 @@
           <strong>${escapeHtml(item.currency)} ${number(item.value)}</strong>
         </label>
       `).join('')}</div>
-      <div class="info-note">Es werden nur markierte Positionen gespeichert. Der bisherige Revolut-Bestand wird erst nach deiner Bestätigung ersetzt.</div>
+      <div class="info-note">Es werden nur markierte Positionen gespeichert. Ein Depot-Auszug aktualisiert nur das Depot; vorhandene Krypto-Daten bleiben erhalten – und umgekehrt.</div>
     `;
     save.disabled = false;
   }
@@ -182,11 +217,15 @@
       .map(input => pending[Number(input.dataset.revolutPosition)])
       .filter(Boolean);
     if (!selected.length) return;
-    if (!global.confirm(`${selected.length} geprüfte Revolut-Positionen übernehmen und den bisherigen Revolut-Bestand ersetzen?`)) return;
+    const importedCategories = new Set(selected.map(item => item.category));
+    const categoryLabel = [...importedCategories].map(category => category === 'crypto' ? 'Krypto' : 'Depot').join(' und ');
+    if (!global.confirm(`${selected.length} geprüfte ${categoryLabel}-Positionen übernehmen und diesen Bereich aktualisieren?`)) return;
     const wealth = storage.get(keys.wealth, {});
     const next = wealth && typeof wealth === 'object' ? { ...wealth } : {};
+    const existingPositions = Array.isArray(next.revolut?.positions) ? next.revolut.positions : [];
+    const retainedPositions = existingPositions.filter(item => !importedCategories.has(item.category));
     next.revolut = {
-      positions: selected,
+      positions: [...retainedPositions, ...selected],
       statementDate: pendingStatementDates.sort().at(-1) || new Date().toISOString(),
       sourceFiles: pendingFiles
     };
@@ -201,6 +240,13 @@
   global.budgetQuestOpenRevolutImport = () => {
     ensureUi();
     document.getElementById('revolutImportDialog').showModal();
+  };
+
+  global.budgetQuestOpenRevolutPage = () => {
+    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+    document.querySelectorAll('.nav button').forEach(button => button.classList.toggle('active', button.dataset.target === 'revolut'));
+    document.getElementById('revolut')?.classList.add('active');
+    global.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   document.readyState === 'loading'
