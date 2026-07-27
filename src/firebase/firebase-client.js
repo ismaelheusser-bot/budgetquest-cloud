@@ -61,5 +61,6 @@
 
   loadModule('src/firebase/firebase-owner-controls.js?v=1', 'data-bq-owner-controls');
   loadModule('home-affordability-fix.js?v=1', 'data-bq-home-affordability-fix');
-  loadModule('home-year-projection-fix.js?v=1', 'data-bq-home-year-projection-fix');
+  loadModule('home-year-projection-fix.js?v=2', 'data-bq-home-year-projection-fix');
+  loadModule('home-gross-income-separation.js?v=1', 'data-bq-home-gross-income-separation');
 })(window);
