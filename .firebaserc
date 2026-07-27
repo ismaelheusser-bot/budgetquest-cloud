@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "budgetquest-cloud"
+  },
+  "targets": {
+    "budgetquest-cloud": {
+      "hosting": {
+        "budgetquest-cloud": [
+          "budgetquest-cloud"
+        ]
+      }
+    }
+  }
+}

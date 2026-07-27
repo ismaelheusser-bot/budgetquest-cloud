@@ -8,6 +8,7 @@
   const isStandalone = () =>
     global.matchMedia?.('(display-mode: standalone)')?.matches
     || global.navigator?.standalone === true;
+  const isFirebaseHosted = () => /(^|\.)budgetquest-cloud\.(firebaseapp\.com|web\.app)$/i.test(global.location.hostname);
 
   const status = (message, isError = false) => {
     const element = document.getElementById('firebaseAuthStatus');
@@ -22,9 +23,9 @@
       'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
       'auth/network-request-failed': 'Keine Verbindung zu Google. Bitte Internetverbindung prüfen.',
       'auth/operation-not-allowed': 'Google muss zuerst in Firebase Authentication aktiviert werden.',
-      'auth/popup-blocked': 'Das Google-Anmeldefenster wurde blockiert. Bitte BudgetQuest vollständig schliessen und erneut öffnen.',
+      'auth/popup-blocked': 'Das Google-Anmeldefenster wurde blockiert.',
       'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen.',
-      'auth/operation-not-supported-in-this-environment': 'Die Google-Anmeldung wird von dieser iOS-App-Sitzung blockiert. Bitte die App vollständig schliessen und erneut öffnen.',
+      'auth/redirect-cancelled-by-user': 'Google-Anmeldung wurde abgebrochen.',
       'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet. Bitte erneut versuchen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
       'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
@@ -54,12 +55,12 @@
 
   const signedOutTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
-    <p>Melde dich direkt in dieser App mit deinem Google-Konto an. Danach wird dein Cloud-Haushalt automatisch geladen.</p>
+    <p>Melde dich mit deinem Google-Konto an. Danach wird dein Cloud-Haushalt automatisch geladen.</p>
     <button class="btn google-sign-in section" data-firebase-auth type="button" onclick="budgetQuestGoogleSignIn()">
       <span class="google-mark" aria-hidden="true">G</span>
       <span>Mit Google anmelden</span>
     </button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isStandalone() ? 'Home-Screen-App bereit zur Anmeldung.' : 'Noch nicht angemeldet.'}</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isFirebaseHosted() ? 'Sichere Firebase-Anmeldung bereit.' : 'Für die zuverlässige Home-Screen-Anmeldung bitte die Firebase-Version der App verwenden.'}</div>
   `;
 
   const signedInTemplate = () => `
@@ -90,11 +91,17 @@
   global.budgetQuestGoogleSignIn = async () => {
     if (authBusy) return;
     setBusy(true);
-    status('Google-Anmeldung wird direkt in der Home-Screen-App geöffnet …');
+    status('Google-Anmeldung wird geöffnet …');
     try {
       const firebase = await global.budgetQuestFirebaseReady;
       const provider = new firebase.authApi.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
+
+      if (isStandalone() && isFirebaseHosted()) {
+        await firebase.authApi.signInWithRedirect(firebase.auth, provider);
+        return;
+      }
+
       const result = await withTimeout(firebase.authApi.signInWithPopup(firebase.auth, provider));
       const user = result?.user || firebase.auth.currentUser || null;
       if (!user) {
@@ -131,7 +138,16 @@
   const initialize = async () => {
     try {
       const firebase = await global.budgetQuestFirebaseReady;
-      renderUser(firebase.auth.currentUser || null);
+      let redirectResult = null;
+      if (isFirebaseHosted()) {
+        try {
+          redirectResult = await firebase.authApi.getRedirectResult(firebase.auth);
+        } catch (error) {
+          console.warn('BudgetQuest Firebase Redirect-Ergebnis:', error);
+          status(messageFor(error), true);
+        }
+      }
+      renderUser(redirectResult?.user || firebase.auth.currentUser || null);
       firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => status(messageFor(error), true));
     } catch (error) {
       console.warn('BudgetQuest Firebase konnte nicht geladen werden:', error);
