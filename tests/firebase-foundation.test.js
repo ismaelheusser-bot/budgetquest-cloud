@@ -35,7 +35,7 @@ assert.match(authUi, /firebaseCloudControls/);
 assert.match(cloudController, /discoverHousehold/);
 assert.match(cloudController, /initialStrategy = 'remote-first'/);
 assert.match(cloudController, /Bei jedem Start werden zuerst die Cloud-Daten geladen/);
-assert.match(cloudController, /invitation\.status === 'accepted'/);
+assert.match(cloudController, /invitation\?\.status === 'accepted'/);
 assert.match(ownerControls, /data\.ownerId === user\.uid/);
 assert.match(ownerControls, /budgetQuestOwnerInviteHouseholdMember/);
 assert.match(ownerControls, /Zum Haushalt einladen/);
