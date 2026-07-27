@@ -59,6 +59,7 @@
     document.head.appendChild(script);
   };
 
+  loadModule('branding.js?v=1', 'data-bq-branding');
   loadModule('src/firebase/firebase-owner-controls.js?v=1', 'data-bq-owner-controls');
   loadModule('home-affordability-fix.js?v=1', 'data-bq-home-affordability-fix');
   loadModule('home-year-projection-fix.js?v=2', 'data-bq-home-year-projection-fix');
