@@ -63,6 +63,7 @@
   loadModule('home-affordability-fix.js?v=1', 'data-bq-home-affordability-fix');
   loadModule('home-year-projection-fix.js?v=2', 'data-bq-home-year-projection-fix');
   loadModule('home-gross-income-separation.js?v=2', 'data-bq-home-gross-income-separation');
+  loadModule('home-save-controls.js?v=1', 'data-bq-home-save-controls');
   loadModule('backup-export-ui.js?v=1', 'data-bq-backup-export-ui');
   loadModule('legacy-backup-import.js?v=1', 'data-bq-legacy-backup-import');
 })(window);
