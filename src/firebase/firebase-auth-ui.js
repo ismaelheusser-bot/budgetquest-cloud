@@ -92,7 +92,8 @@
       const provider = new firebase.authApi.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       try {
-        await withTimeout(firebase.authApi.signInWithPopup(firebase.auth, provider));
+        const result = await withTimeout(firebase.authApi.signInWithPopup(firebase.auth, provider));
+        if (result?.user) renderUser(result.user);
       } catch (error) {
         const redirectCodes = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
         if (!redirectCodes.includes(error?.code)) throw error;
@@ -115,6 +116,7 @@
     try {
       const firebase = await global.budgetQuestFirebaseReady;
       await firebase.authApi.signOut(firebase.auth);
+      renderUser(null);
       status('Erfolgreich abgemeldet.');
     } catch (error) {
       status(messageFor(error), true);
@@ -126,11 +128,16 @@
   const initialize = async () => {
     try {
       const firebase = await global.budgetQuestFirebaseReady;
+      let redirectResult = null;
       try {
-        await firebase.authApi.getRedirectResult(firebase.auth);
+        redirectResult = await firebase.authApi.getRedirectResult(firebase.auth);
       } catch (error) {
         console.warn('BudgetQuest Firebase Redirect-Ergebnis:', error);
+        status(messageFor(error), true);
       }
+
+      const restoredUser = redirectResult?.user || firebase.auth.currentUser || null;
+      renderUser(restoredUser);
       firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => status(messageFor(error), true));
     } catch (error) {
       console.warn('BudgetQuest Firebase konnte nicht geladen werden:', error);
