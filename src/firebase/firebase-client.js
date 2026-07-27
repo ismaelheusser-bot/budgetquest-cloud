@@ -60,4 +60,5 @@
 
   loadModule('src/firebase/firebase-owner-controls.js?v=1', 'data-bq-owner-controls');
   loadModule('home-affordability-fix.js?v=1', 'data-bq-home-affordability-fix');
+  loadModule('src/wealth/revolut-ai-invest.js?v=1', 'data-bq-revolut-ai-invest');
 })(window);
