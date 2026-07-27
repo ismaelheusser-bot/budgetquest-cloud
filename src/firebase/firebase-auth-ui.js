@@ -5,9 +5,6 @@
   let authBusy = false;
 
   const container = () => document.getElementById('firebaseAccount');
-  const isStandalone = () =>
-    global.matchMedia?.('(display-mode: standalone)')?.matches
-    || global.navigator?.standalone === true;
   const isFirebaseHosted = () => /(^|\.)budgetquest-cloud\.(firebaseapp\.com|web\.app)$/i.test(global.location.hostname);
 
   const status = (message, isError = false) => {
@@ -23,9 +20,8 @@
       'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
       'auth/network-request-failed': 'Keine Verbindung zu Google. Bitte Internetverbindung prüfen.',
       'auth/operation-not-allowed': 'Google muss zuerst in Firebase Authentication aktiviert werden.',
-      'auth/popup-blocked': 'Das Google-Anmeldefenster wurde blockiert.',
+      'auth/popup-blocked': 'Das Google-Anmeldefenster wurde blockiert. Bitte nochmals direkt auf den Anmeldeknopf tippen.',
       'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen.',
-      'auth/redirect-cancelled-by-user': 'Google-Anmeldung wurde abgebrochen.',
       'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet. Bitte erneut versuchen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
       'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
@@ -60,7 +56,7 @@
       <span class="google-mark" aria-hidden="true">G</span>
       <span>Mit Google anmelden</span>
     </button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isFirebaseHosted() ? 'Sichere Firebase-Anmeldung bereit.' : 'Für die zuverlässige Home-Screen-Anmeldung bitte die Firebase-Version der App verwenden.'}</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isFirebaseHosted() ? 'Sichere Firebase-Anmeldung bereit.' : 'Für die zuverlässige Anmeldung bitte die Firebase-Version der App verwenden.'}</div>
   `;
 
   const signedInTemplate = () => `
@@ -97,11 +93,6 @@
       const provider = new firebase.authApi.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      if (isStandalone() && isFirebaseHosted()) {
-        await firebase.authApi.signInWithRedirect(firebase.auth, provider);
-        return;
-      }
-
       const result = await withTimeout(firebase.authApi.signInWithPopup(firebase.auth, provider));
       const user = result?.user || firebase.auth.currentUser || null;
       if (!user) {
@@ -113,12 +104,16 @@
       status('Erfolgreich mit Google angemeldet. Cloud-Haushalt wird geladen …');
     } catch (error) {
       console.warn('BudgetQuest Firebase Authentication:', error);
-      renderUser(null);
+      renderUser(firebaseCurrentUserSafe());
       status(messageFor(error), true);
     } finally {
       setBusy(false);
     }
   };
+
+  function firebaseCurrentUserSafe() {
+    return global.budgetQuestCurrentUser || null;
+  }
 
   global.budgetQuestSignOut = async () => {
     if (authBusy) return;
@@ -138,16 +133,7 @@
   const initialize = async () => {
     try {
       const firebase = await global.budgetQuestFirebaseReady;
-      let redirectResult = null;
-      if (isFirebaseHosted()) {
-        try {
-          redirectResult = await firebase.authApi.getRedirectResult(firebase.auth);
-        } catch (error) {
-          console.warn('BudgetQuest Firebase Redirect-Ergebnis:', error);
-          status(messageFor(error), true);
-        }
-      }
-      renderUser(redirectResult?.user || firebase.auth.currentUser || null);
+      renderUser(firebase.auth.currentUser || null);
       firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => status(messageFor(error), true));
     } catch (error) {
       console.warn('BudgetQuest Firebase konnte nicht geladen werden:', error);
