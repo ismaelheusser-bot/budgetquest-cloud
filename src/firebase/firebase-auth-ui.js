@@ -5,10 +5,6 @@
   let authBusy = false;
 
   const container = () => document.getElementById('firebaseAccount');
-  const isStandalone = () =>
-    global.matchMedia?.('(display-mode: standalone)')?.matches
-    || global.navigator?.standalone === true;
-
   const status = (message, isError = false) => {
     const element = document.getElementById('firebaseAuthStatus');
     if (!element) return;
@@ -22,10 +18,10 @@
       'auth/cancelled-popup-request': 'Die vorherige Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
       'auth/network-request-failed': 'Keine Verbindung zu Google. Bitte Internetverbindung prüfen.',
       'auth/operation-not-allowed': 'Google muss zuerst in Firebase Authentication aktiviert werden.',
-      'auth/popup-blocked': 'Das Google-Fenster wurde blockiert. Bitte Pop-ups für BudgetQuest erlauben.',
-      'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen. Die App kann normal weiterverwendet werden.',
-      'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet und wurde zurückgesetzt. Bitte erneut versuchen.',
-      'auth/redirect-cancelled-by-user': 'Google-Anmeldung wurde abgebrochen. Du kannst es erneut versuchen.',
+      'auth/popup-blocked': 'Das Google-Fenster wurde blockiert. BudgetQuest wechselt zur Weiterleitung.',
+      'auth/popup-closed-by-user': 'Google-Anmeldung wurde abgebrochen.',
+      'auth/operation-timeout': 'Die Google-Anmeldung hat zu lange gewartet. Bitte erneut versuchen.',
+      'auth/redirect-cancelled-by-user': 'Google-Anmeldung wurde abgebrochen.',
       'auth/too-many-requests': 'Zu viele Versuche. Bitte später nochmals probieren.',
       'auth/unauthorized-domain': 'Diese App-Adresse muss in Firebase als autorisierte Domain eingetragen werden.'
     };
@@ -39,12 +35,6 @@
       button.setAttribute('aria-busy', busy ? 'true' : 'false');
     });
   };
-
-  function resetPendingAuthState(message = '') {
-    if (!authBusy) return;
-    setBusy(false);
-    if (message) status(message, true);
-  }
 
   function withTimeout(promise) {
     let timeoutId;
@@ -60,27 +50,22 @@
 
   const signedOutTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
-    <p>Melde dich sicher mit deinem Google-Konto an. Deine Budgetdaten bleiben bis zur ausdrücklich bestätigten Migration auf diesem Gerät.</p>
+    <p>Melde dich mit deinem Google-Konto an. Danach wird dein Cloud-Haushalt automatisch geladen.</p>
     <button class="btn google-sign-in section" data-firebase-auth type="button" onclick="budgetQuestGoogleSignIn()">
       <span class="google-mark" aria-hidden="true">G</span>
       <span>Mit Google anmelden</span>
     </button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">${isStandalone() ? 'Installierte App: Anmeldung wird innerhalb dieser App gespeichert.' : 'Noch nicht angemeldet.'}</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Noch nicht angemeldet.</div>
   `;
 
   const signedInTemplate = () => `
     <strong>☁️ BudgetQuest Cloud</strong>
     <p>Angemeldet als <b class="cloud-account-name"></b></p>
     <div class="cloud-account-email tiny"></div>
-    <div class="cloud-auth-state">
-      <span class="cloud-state-dot"></span>
-      <span>Google-Konto verbunden</span>
-    </div>
-    <div id="firebaseCloudControls" class="cloud-sync-controls section">
-      <div class="tiny">Cloud-Status wird geprüft …</div>
-    </div>
+    <div class="cloud-auth-state"><span class="cloud-state-dot"></span><span>Google-Konto dauerhaft verbunden</span></div>
+    <div id="firebaseCloudControls" class="cloud-sync-controls section"><div class="tiny">Cloud-Haushalt wird geladen …</div></div>
     <button class="btn secondary section" data-firebase-auth type="button" onclick="budgetQuestSignOut()">Abmelden</button>
-    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Google-Anmeldung aktiv.</div>
+    <div id="firebaseAuthStatus" class="tiny cloud-auth-status">Anmeldung wird auf diesem Gerät gespeichert.</div>
   `;
 
   function renderUser(user) {
@@ -95,95 +80,65 @@
     }
     setBusy(false);
     global.budgetQuestCurrentUser = user || null;
-    global.dispatchEvent(new CustomEvent('budgetquest-auth-changed', {
-      detail: { user: user || null }
-    }));
+    global.dispatchEvent(new CustomEvent('budgetquest-auth-changed', { detail: { user: user || null } }));
   }
 
-  async function perform(action, successMessage) {
+  global.budgetQuestGoogleSignIn = async () => {
     if (authBusy) return;
     setBusy(true);
-    status('Bitte warten …');
+    status('Google-Anmeldung wird geöffnet …');
     try {
       const firebase = await global.budgetQuestFirebaseReady;
-      await withTimeout(action(firebase));
-      status(successMessage);
+      const provider = new firebase.authApi.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      try {
+        await withTimeout(firebase.authApi.signInWithPopup(firebase.auth, provider));
+      } catch (error) {
+        const redirectCodes = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'];
+        if (!redirectCodes.includes(error?.code)) throw error;
+        status('Weiterleitung zu Google …');
+        await firebase.authApi.signInWithRedirect(firebase.auth, provider);
+        return;
+      }
+      status('Erfolgreich mit Google angemeldet.');
     } catch (error) {
       console.warn('BudgetQuest Firebase Authentication:', error);
       status(messageFor(error), true);
     } finally {
       setBusy(false);
     }
-  }
+  };
 
-  global.budgetQuestGoogleSignIn = async () => {
+  global.budgetQuestSignOut = async () => {
     if (authBusy) return;
-    const providerFor = firebase => {
-      const provider = new firebase.authApi.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      return provider;
-    };
-
-    if (!isStandalone()) {
-      return perform(
-        firebase => firebase.authApi.signInWithPopup(firebase.auth, providerFor(firebase)),
-        'Erfolgreich mit Google angemeldet.'
-      );
-    }
-
     setBusy(true);
-    status('Google-Anmeldung wird geöffnet …');
     try {
       const firebase = await global.budgetQuestFirebaseReady;
-      await firebase.authApi.signInWithRedirect(firebase.auth, providerFor(firebase));
+      await firebase.authApi.signOut(firebase.auth);
+      status('Erfolgreich abgemeldet.');
     } catch (error) {
-      console.warn('BudgetQuest Firebase Redirect-Anmeldung:', error);
-      setBusy(false);
       status(messageFor(error), true);
+    } finally {
+      setBusy(false);
     }
   };
 
-  global.budgetQuestSignOut = () => perform(
-    firebase => firebase.authApi.signOut(firebase.auth),
-    'Erfolgreich abgemeldet.'
-  );
-
-  global.addEventListener('pageshow', () => {
-    resetPendingAuthState('Die unterbrochene Google-Anmeldung wurde zurückgesetzt. Du kannst die App weiterverwenden.');
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !isStandalone()) {
-      global.setTimeout(() => {
-        resetPendingAuthState('Die unterbrochene Google-Anmeldung wurde zurückgesetzt. Du kannst es erneut versuchen.');
-      }, 500);
-    }
-  });
-
   const initialize = async () => {
-    renderUser(null);
     try {
       const firebase = await global.budgetQuestFirebaseReady;
       try {
         await firebase.authApi.getRedirectResult(firebase.auth);
       } catch (error) {
         console.warn('BudgetQuest Firebase Redirect-Ergebnis:', error);
-        status(messageFor(error), true);
       }
-      firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => {
-        resetPendingAuthState();
-        status(messageFor(error), true);
-      });
+      firebase.authApi.onAuthStateChanged(firebase.auth, renderUser, error => status(messageFor(error), true));
     } catch (error) {
       console.warn('BudgetQuest Firebase konnte nicht geladen werden:', error);
-      resetPendingAuthState();
-      status('Firebase konnte nicht geladen werden. Die App funktioniert weiterhin lokal.', true);
+      renderUser(null);
+      status('Firebase konnte nicht geladen werden. Offline-Daten bleiben verfügbar.', true);
     }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize, { once: true });
-  } else {
-    initialize();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  else initialize();
 })(window);
