@@ -3,7 +3,7 @@
 
   const firebaseConfig = Object.freeze({
     apiKey: 'AIzaSyA1RCPtmoaiMEY3VVU8F9SSybc8xHwCYJg',
-    authDomain: 'budgetquest-cloud.firebaseapp.com',
+    authDomain: 'budgetquest-cloud.web.app',
     projectId: 'budgetquest-cloud',
     storageBucket: 'budgetquest-cloud.firebasestorage.app',
     messagingSenderId: '298317424738',
