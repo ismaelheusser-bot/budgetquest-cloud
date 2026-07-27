@@ -28,7 +28,8 @@
         persistence: [
           authApi.indexedDBLocalPersistence,
           authApi.browserLocalPersistence
-        ]
+        ],
+        popupRedirectResolver: authApi.browserPopupRedirectResolver
       });
     } catch (error) {
       auth = authApi.getAuth(app);
