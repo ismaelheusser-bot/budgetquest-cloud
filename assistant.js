@@ -1,23 +1,95 @@
 (()=>{
- const storage=budgetQuestStorage,keys=BudgetQuestStorageKeys;
- const KEY=keys.savingsAssistant,ACTIVE_KEY=keys.savingsActive;
- const defaults={adults:2,children:2,pets:0,housing:'rent',housingCost:0,shoppingTrips:4,takeaway:2,restaurants:2,spontaneous:3,planning:3,priceCompare:3,discounts:3,brands:3,subscriptions:0,insuranceAnnual:0,insuranceCompared:0,vehicles:1,vehicleMonthly:0,publicTransportMonthly:0,holidayAnnual:0,hobbiesMonthly:0};
- const readObject=key=>{const value=storage.get(key,{});return value&&typeof value==='object'&&!Array.isArray(value)?value:{}};
- const load=()=>({...defaults,...readObject(KEY)});
- const save=d=>storage.set(KEY,d);
- const active=()=>readObject(ACTIVE_KEY);
- const money=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
- const num=id=>Number(document.getElementById(id)?.value||0),val=id=>document.getElementById(id)?.value||'';
- const field=(label,id,type='number',extra='')=>`<label>${label}<input id="${id}" type="${type}" ${extra}></label>`;
- const select=(label,id,options)=>`<label>${label}<select id="${id}">${options.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>`;
- function createUI(){if(document.getElementById('assistant'))return;const s=document.createElement('section');s.id='assistant';s.className='screen';s.innerHTML=`<div class="section-head"><div><h2>Spar-Assistent</h2><div class="tiny">Aktiviere nur Sparhebel, die du wirklich umsetzen willst.</div></div><div class="pill" id="assistantProfileScore">Profil 0 %</div></div><div id="assistantDataNotice" class="info-note section"></div><div class="grid2 section"><div class="card"><h3>👨‍👩‍👧 Haushalt</h3><div class="assistant-grid">${field('Erwachsene','saAdults','number','min="1" max="10"')}${field('Kinder','saChildren','number','min="0" max="10"')}${field('Haustiere','saPets','number','min="0" max="10"')}${select('Wohnform','saHousing',[['rent','Miete'],['own','Eigentum']])}${field('Miete / Hypothek pro Monat','saHousingCost','number','min="0" step="10"')}</div></div><div class="card"><h3>🛒 Einkaufen & Essen</h3><div class="assistant-grid">${field('Lebensmitteleinkäufe pro Woche','saShoppingTrips','number','min="0" max="30"')}${field('Take-away pro Monat','saTakeaway','number','min="0" max="60"')}${field('Restaurantbesuche pro Monat','saRestaurants','number','min="0" max="60"')}${field('Spontankäufe 1–5','saSpontaneous','range','min="1" max="5"')}${field('Einkäufe planen 1–5','saPlanning','range','min="1" max="5"')}${field('Preise vergleichen 1–5','saPriceCompare','range','min="1" max="5"')}${field('Aktionen nutzen 1–5','saDiscounts','range','min="1" max="5"')}${field('Markenprodukte 1–5','saBrands','range','min="1" max="5"')}</div></div><div class="card"><h3>🚗 Mobilität</h3><div class="assistant-grid">${field('Fahrzeuge','saVehicles','number','min="0" max="10"')}${field('Fahrzeugkosten pro Monat','saVehicleMonthly','number','min="0" step="10"')}${field('ÖV-Kosten pro Monat','saPublicTransportMonthly','number','min="0" step="10"')}</div></div><div class="card"><h3>📺 Verträge & Freizeit</h3><div class="assistant-grid">${field('Abonnemente pro Monat','saSubscriptions','number','min="0" step="1"')}${field('Versicherungen pro Jahr','saInsuranceAnnual','number','min="0" step="10"')}${field('Jahre seit letztem Vergleich','saInsuranceCompared','number','min="0" max="30"')}${field('Ferienbudget pro Jahr','saHolidayAnnual','number','min="0" step="50"')}${field('Hobbys pro Monat','saHobbiesMonthly','number','min="0" step="10"')}</div></div></div><div class="actions section"><button class="btn" id="saveAssistant">Angaben speichern & analysieren</button><button class="btn secondary" id="resetAssistant">Zurücksetzen</button></div><div class="assistant-summary section"><div class="metric"><label>Erkanntes Potenzial</label><strong class="positive" id="assistantMonthly">CHF 0.00</strong></div><div class="metric"><label>Aktiv für Eigenheim</label><strong class="positive" id="assistantActive">CHF 0.00</strong></div><div class="metric"><label>Aktiv pro Jahr</label><strong class="positive" id="assistantAnnual">CHF 0.00</strong></div></div><div class="card section"><h3>Deine grössten Sparhebel</h3><div class="tiny">Nur aktivierte Hebel fliessen in Dashboard und Eigenheim ein.</div><div id="assistantResults"></div></div>`;document.querySelector('.app')?.appendChild(s);const nav=document.querySelector('.nav');if(nav&&!nav.querySelector('[data-target="assistant"]')){const b=document.createElement('button');b.dataset.target='assistant';b.textContent='Coach';nav.appendChild(b)}const st=document.createElement('style');st.textContent='.assistant-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.assistant-grid input,.assistant-grid select{width:100%;border:1px solid #31425f;border-radius:13px;padding:12px;background:#0d1728;color:white}.assistant-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.lever{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;padding:15px 0;border-bottom:1px solid var(--line)}.lever-toggle{width:22px;height:22px;margin-top:5px}.lever h4{margin:0 0 4px}.lever p{margin:0;color:var(--muted);font-size:13px}.lever strong{white-space:nowrap;color:var(--green)}@media(max-width:720px){.assistant-grid,.assistant-summary{grid-template-columns:1fr}.nav{grid-template-columns:repeat(7,minmax(0,1fr))!important}.nav button{font-size:9px!important;padding:9px 1px!important}}';document.head.appendChild(st);bindNav();bindActions();fillForm();analyse()}
- function bindNav(){document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.target)?.classList.add('active');scrollTo({top:0,behavior:'smooth'})}))}
- function fillForm(){const d=load();Object.entries(d).forEach(([k,v])=>{const e=document.getElementById('sa'+k[0].toUpperCase()+k.slice(1));if(e)e.value=v});profile(d)}
- function readForm(){return{adults:num('saAdults'),children:num('saChildren'),pets:num('saPets'),housing:val('saHousing'),housingCost:num('saHousingCost'),shoppingTrips:num('saShoppingTrips'),takeaway:num('saTakeaway'),restaurants:num('saRestaurants'),spontaneous:num('saSpontaneous'),planning:num('saPlanning'),priceCompare:num('saPriceCompare'),discounts:num('saDiscounts'),brands:num('saBrands'),subscriptions:num('saSubscriptions'),insuranceAnnual:num('saInsuranceAnnual'),insuranceCompared:num('saInsuranceCompared'),vehicles:num('saVehicles'),vehicleMonthly:num('saVehicleMonthly'),publicTransportMonthly:num('saPublicTransportMonthly'),holidayAnnual:num('saHolidayAnnual'),hobbiesMonthly:num('saHobbiesMonthly')}}
- function profile(d){const keys=Object.keys(defaults),done=keys.filter(k=>d[k]!==''&&d[k]!==null&&d[k]!==undefined).length;document.getElementById('assistantProfileScore').textContent=`Profil ${Math.round(done/keys.length*100)} %`}
- function rows(){const value=storage.get(keys.transactions,[]);return Array.isArray(value)?value:[]}
- function monthly(rs,re){const months=Math.max(1,new Set(rs.map(t=>String(t.date||'').slice(0,7))).size);return rs.filter(t=>re.test(`${t.cat||''} ${t.title||''}`)&&Number(t.amount)>0).reduce((s,t)=>s+Number(t.amount||0),0)/months}
- function analyse(){const d=load(),all=rows(),cut=new Date();cut.setMonth(cut.getMonth()-3);const rs=all.filter(t=>new Date(t.date)>=cut),latest=all.map(t=>new Date(t.date)).filter(x=>!isNaN(x)).sort((a,b)=>b-a)[0],levers=[];document.getElementById('assistantDataNotice').textContent=!latest?'⚠️ Aktuelle Buchungsdaten fehlen.':`Letzte Buchung: ${latest.toLocaleDateString('de-CH')}`;const food=monthly(rs,/Lebensmittel|migros|coop|aldi|lidl|denner|volg/i)||Math.max(300,d.adults*260+d.children*150);const fp=Math.round(food*Math.min(.22,.03+Math.max(0,d.shoppingTrips-3)*.018+(d.spontaneous-1)*.012+(d.brands-1)*.01-(d.planning-1)*.006));if(fp>=10)levers.push({id:'food',name:'Lebensmittel',value:fp,text:'Weniger Kleineinkäufe, mehr Planung und konsequenter Preisvergleich.'});const dining=monthly(rs,/Restaurant|Take.?away|cafe|pizzeria|burger/i)||d.takeaway*22+d.restaurants*55;const dp=Math.round(dining*.28);if(dp>=10)levers.push({id:'dining',name:'Restaurant & Take-away',value:dp,text:'Moderate Reduktion statt vollständigem Verzicht.'});const sp=Math.round(Math.max(monthly(rs,/Abonnement|netflix|spotify|disney|swisscom|sunrise|salt/i),d.subscriptions)*.22);if(sp>=5)levers.push({id:'subs',name:'Abonnemente',value:sp,text:'Selten genutzte oder doppelte Abos prüfen.'});const ip=d.insuranceCompared>=3?Math.round(d.insuranceAnnual/12*.08):0;if(ip>=10)levers.push({id:'insurance',name:'Versicherungen',value:ip,text:'Prämien nach mehreren Jahren neu vergleichen.'});const mp=Math.round(Math.max(monthly(rs,/Transport|tank|shell|avia|agrola|parking|sbb/i),d.vehicleMonthly+d.publicTransportMonthly)*(d.vehicles?0.08:0.04));if(mp>=10)levers.push({id:'mobility',name:'Mobilität',value:mp,text:'Fahrten bündeln und wiederkehrende Kosten prüfen.'});levers.sort((a,b)=>b.value-a.value);const a=active(),total=levers.reduce((s,l)=>s+l.value,0),activeTotal=levers.filter(l=>a[l.id]).reduce((s,l)=>s+l.value,0);storage.set(keys.activeSavingsMonthly,String(activeTotal));document.getElementById('assistantMonthly').textContent=money(total);document.getElementById('assistantActive').textContent=money(activeTotal);document.getElementById('assistantAnnual').textContent=money(activeTotal*12);document.getElementById('assistantResults').innerHTML=levers.map(l=>`<div class="lever"><input class="lever-toggle" type="checkbox" data-id="${l.id}" ${a[l.id]?'checked':''}><div><h4>${l.name}</h4><p>${l.text}</p></div><strong>${money(l.value)}</strong></div>`).join('')||'<div class="empty">Noch keine Sparhebel verfügbar.</div>';document.querySelectorAll('.lever-toggle').forEach(c=>c.onchange=()=>{const n=active();n[c.dataset.id]=c.checked;storage.set(ACTIVE_KEY,n);analyse();window.dispatchEvent(new Event('bq:savings-updated'))});profile(d);window.dispatchEvent(new Event('bq:savings-updated'))}
- function bindActions(){document.getElementById('saveAssistant').onclick=()=>{save(readForm());analyse()};document.getElementById('resetAssistant').onclick=()=>{if(confirm('Alle Assistenten-Angaben zurücksetzen?')){storage.remove(KEY);storage.remove(ACTIVE_KEY);storage.set(keys.activeSavingsMonthly,'0');fillForm();analyse()}}}
- document.readyState==='loading'?document.addEventListener('DOMContentLoaded',createUI):createUI();
+  const $=id=>document.getElementById(id);
+  const format=v=>'CHF '+Number(v||0).toLocaleString('de-CH',{maximumFractionDigits:2});
+  const safe=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const monthName=d=>d.toLocaleDateString('de-CH',{month:'long'});
+  const spentFor=(cat,month,year)=>monthTx(month,year).filter(t=>t.cat===cat&&Number(t.amount)>0).reduce((s,t)=>s+Number(t.amount||0),0);
+
+  function installStyles(){
+    if($('dashboard2Styles'))return;
+    const style=document.createElement('style');
+    style.id='dashboard2Styles';
+    style.textContent=`
+      #today{display:flex;flex-direction:column;gap:16px}
+      #today .section{margin-top:0}
+      .dq-hero{background:linear-gradient(135deg,#13233d,#0b1628);border:1px solid #263b5d;border-radius:24px;padding:22px;box-shadow:0 18px 45px rgba(0,0,0,.22)}
+      .dq-hero-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+      .dq-hero-value{font-size:clamp(34px,7vw,58px);font-weight:800;line-height:1;margin:8px 0 12px}
+      .dq-hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+      .dq-stat{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:12px}
+      .dq-stat small{display:block;color:var(--muted);margin-bottom:5px}.dq-stat strong{font-size:17px}
+      .dq-progress{height:12px;background:#1b2940;border-radius:999px;overflow:hidden;margin-top:14px}.dq-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35d07f,#f0c34a)}
+      .dq-comparison{display:grid;grid-template-columns:1.3fr .7fr;gap:14px}
+      .dq-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px}
+      .dq-compare-main{font-size:24px;font-weight:800;margin-top:8px}.dq-good{color:#43d58c}.dq-bad{color:#ff7070}.dq-neutral{color:var(--muted)}
+      .dq-daily{display:flex;flex-direction:column;justify-content:center}.dq-daily strong{font-size:30px;margin:5px 0}
+      .dq-budget-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}.dq-budget-head h3{margin:0}
+      .dq-category{padding:15px 0;border-bottom:1px solid var(--line)}.dq-category:last-child{border-bottom:0}
+      .dq-row{display:flex;justify-content:space-between;gap:12px;align-items:center}.dq-row strong{font-size:16px}.dq-row span{text-align:right}
+      .dq-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-top:7px}.dq-cat-progress{height:8px;background:#1b2940;border-radius:999px;overflow:hidden;margin-top:9px}.dq-cat-progress span{display:block;height:100%;border-radius:inherit;background:#43d58c}.dq-cat-progress.warn span{background:#f0c34a}.dq-cat-progress.over span{background:#ff7070}
+      .dq-change{font-weight:700}.dq-empty{color:var(--muted);padding:14px 0}
+      #today>.hero,#today>.metric-grid,#today>.grid2{display:none!important}
+      @media(max-width:720px){.dq-comparison{grid-template-columns:1fr}.dq-hero-grid{grid-template-columns:1fr}.dq-hero{padding:18px}.dq-row{align-items:flex-start}.dq-meta{flex-direction:column;gap:3px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function buildShell(){
+    const today=$('today');
+    if(!today||$('dashboard2'))return;
+    const shell=document.createElement('div');
+    shell.id='dashboard2';
+    shell.innerHTML=`
+      <section class="dq-hero">
+        <div class="dq-hero-top"><div><div class="eyebrow">Diesen Monat noch verfügbar</div><div class="dq-hero-value" id="dqAvailable">CHF 0</div><div class="tiny" id="dqMonthLabel"></div></div><div class="score-ring" id="dqScore"><span><b id="dqScoreValue">0</b><small>Finanz-Score</small></span></div></div>
+        <div class="dq-progress"><span id="dqOverallProgress"></span></div>
+        <div class="dq-hero-grid"><div class="dq-stat"><small>Monatsbudget</small><strong id="dqBudget">CHF 0</strong></div><div class="dq-stat"><small>Ausgegeben</small><strong id="dqSpent">CHF 0</strong></div><div class="dq-stat"><small>Noch verfügbar</small><strong id="dqRemaining">CHF 0</strong></div></div>
+      </section>
+      <section class="dq-comparison">
+        <div class="dq-card"><div class="eyebrow">Vergleich zum Vormonat</div><div class="dq-compare-main" id="dqComparison">Noch kein Vergleich</div><div class="tiny" id="dqComparisonDetail"></div></div>
+        <div class="dq-card dq-daily"><div class="eyebrow">Tagesbudget</div><strong id="dqDaily">CHF 0</strong><div class="tiny" id="dqDays"></div></div>
+      </section>
+      <section class="dq-card"><div class="dq-budget-head"><div><h3>Budgetübersicht</h3><div class="tiny">Aktueller Monat gegenüber Vormonat</div></div></div><div id="dqCategories"></div></section>
+    `;
+    today.insertBefore(shell,today.firstChild);
+    const chart=[...today.children].find(el=>el.querySelector?.('#monthChart'));
+    if(chart){chart.style.order='20';chart.querySelector('h3').textContent='Monatsentwicklung'}
+  }
+
+  function renderDashboard2(){
+    if(!$('dashboard2'))return;
+    const now=new Date(),month=now.getMonth(),year=now.getFullYear();
+    const prevDate=new Date(year,month-1,1),prevMonth=prevDate.getMonth(),prevYear=prevDate.getFullYear();
+    const variable=monthSpent(month,year),prevVariable=monthSpent(prevMonth,prevYear);
+    const monthlyBudget=Math.max(0,Number(settings.income||0)-Number(settings.fixed||0)-Number(settings.saving||0));
+    const remaining=monthlyBudget-variable;
+    const progress=monthlyBudget?Math.max(0,Math.min(100,variable/monthlyBudget*100)):0;
+    const lastDay=new Date(year,month+1,0).getDate(),daysLeft=Math.max(1,lastDay-now.getDate()+1),daily=Math.max(0,remaining)/daysLeft;
+    const diff=variable-prevVariable,percent=prevVariable?diff/prevVariable*100:null;
+    const financialScore=typeof score==='function'?score():0;
+
+    $('dqAvailable').textContent=format(remaining);
+    $('dqAvailable').className='dq-hero-value '+(remaining<0?'dq-bad':'');
+    $('dqMonthLabel').textContent=`${monthName(now)} ${year} · nach Fixkosten und Sparziel`;
+    $('dqBudget').textContent=format(monthlyBudget);
+    $('dqSpent').textContent=format(variable);
+    $('dqRemaining').textContent=format(remaining);
+    $('dqOverallProgress').style.width=progress+'%';
+    $('dqScore').style.setProperty('--p',financialScore);$('dqScoreValue').textContent=financialScore;
+    $('dqDaily').textContent=format(daily)+' / Tag';
+    $('dqDays').textContent=`Noch ${daysLeft} ${daysLeft===1?'Tag':'Tage'} im Monat`;
+
+    const comparison=$('dqComparison'),detail=$('dqComparisonDetail');
+    comparison.className='dq-compare-main';
+    if(!prevVariable){comparison.textContent='Noch kein Vormonatsvergleich';detail.textContent='Sobald Buchungen aus dem Vormonat vorhanden sind, erscheint hier die Entwicklung.';comparison.classList.add('dq-neutral')}
+    else if(Math.abs(diff)<.01){comparison.textContent='Gleich wie im Vormonat';detail.textContent=`Je ${format(variable)} in ${monthName(now)} und ${monthName(prevDate)}.`;comparison.classList.add('dq-neutral')}
+    else{const better=diff<0;comparison.textContent=`${better?'↓':'↑'} ${format(Math.abs(diff))} ${better?'weniger':'mehr'}`;detail.textContent=`${Math.abs(percent).toFixed(1)} % ${better?'Verbesserung':'höhere Ausgaben'} gegenüber ${monthName(prevDate)}.`;comparison.classList.add(better?'dq-good':'dq-bad')}
+
+    const cats=[...new Set([...budgets.map(b=>b.name),...tx.filter(t=>Number(t.amount)>0).map(t=>t.cat).filter(Boolean)])];
+    const rows=cats.map(name=>{const budget=budgets.find(b=>b.name===name)?.limit||0,current=spentFor(name,month,year),previous=spentFor(name,prevMonth,prevYear);return{name,budget,current,previous,remaining:budget-current,change:current-previous}}).filter(r=>r.budget||r.current||r.previous).sort((a,b)=>(b.budget?b.current/b.budget:b.current)-(a.budget?a.current/a.budget:a.current));
+    $('dqCategories').innerHTML=rows.length?rows.map(r=>{const p=r.budget?Math.max(0,Math.min(100,r.current/r.budget*100)):0,status=p>100?'over':p>=80?'warn':'',changeClass=r.change<0?'dq-good':r.change>0?'dq-bad':'dq-neutral',changeText=!r.previous&&r.current?'Neu in diesem Monat':r.change===0?'Unverändert':`${r.change<0?'↓':'↑'} ${format(Math.abs(r.change))} ${r.change<0?'weniger':'mehr'}`;return`<div class="dq-category"><div class="dq-row"><strong>${safe(r.name)}</strong><span>${format(r.current)} / ${r.budget?format(r.budget):'kein Limit'}</span></div><div class="dq-cat-progress ${status}"><span style="width:${p}%"></span></div><div class="dq-meta"><span>${r.budget?`Noch ${format(r.remaining)}`:'Budgetlimit nicht festgelegt'}</span><span class="dq-change ${changeClass}">${changeText}</span></div></div>`}).join(''):'<div class="dq-empty">Noch keine Ausgaben für einen Monatsvergleich vorhanden.</div>';
+  }
+
+  function start(){installStyles();buildShell();renderDashboard2();const originalRender=window.render;if(typeof originalRender==='function'){window.render=function(...args){const result=originalRender.apply(this,args);renderDashboard2();return result}}window.addEventListener('bq:cloud-data-applied',renderDashboard2);window.addEventListener('storage',renderDashboard2)}
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start):start();
 })();
