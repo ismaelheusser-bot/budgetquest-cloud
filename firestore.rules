@@ -94,5 +94,9 @@ service cloud.firestore {
 
       allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
+
+    match /pushReminders/{uid} {
+      allow read, create, update, delete: if signedIn() && request.auth.uid == uid;
+    }
   }
 }
